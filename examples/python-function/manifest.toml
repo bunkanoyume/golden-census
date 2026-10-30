@@ -1,0 +1,81 @@
+# The manifest: one subject, its inputs, its surfaces, its permitted
+# movements. `docs/manifest-format.md` is authoritative for every key.
+#
+# `golden-census init` wrote this file with its holes IN PLACE. Each hole is a fact
+# about this project that only this project knows; replace it, fence and all,
+# with the project's own value. Every command REFUSES a manifest that still
+# carries one, naming it — an unfilled hole is a project that has not finished
+# plugging in.
+
+[subject]
+name    = "wordstats"                     # the subject's own word, printed at the head of every comparison
+root    = "../.."                         # the subject's checkout, relative to this file; the cwd of every run
+command = ["<PYTHON>", "<HERE>/runner.py"]  # the argv prefix of every run; <PYTHON> is the interpreter running golden-census, <HERE> this file's own directory
+census  = "census.toml"                     # the census beside this manifest: what the environment around every run is pinned to
+# version = ["--version"]                   # optional: the argv that prints the subject's version
+
+# ------------------------------------------------------------------- inputs
+#
+# One [inputs.<name>] table per thing the surfaces are run over. The name is
+# the first half of every recorded row's key, `<input>/<surface>`.
+
+[inputs."fixtures"]
+args     = []                             # this input's own arguments, one string per argument; `args = []` for an input that takes none
+surfaces = ["results"]                    # the [surfaces.<name>] tables this input is recorded over
+# git  = "https://example.invalid/some/repo"          # optional: a clone as the input; `git` and `sha` come together, and an empty string is neither
+# sha  = "0000000000000000000000000000000000000000"   # optional: the commit that clone is pinned to
+# expect_counts = { rows = 0 }              # optional: printed as AGREES/DIFFERS beside a counter's numbers; never gates
+
+# ----------------------------------------------------------------- surfaces
+#
+# One [surfaces.<name>] table per surface. `kind = "run"` is the default: one
+# subprocess, recorded as `.out`, `.err` and `.exit`.
+
+[surfaces."results"]
+args   = ["<WRITES>"]                     # this surface's arguments, one string per argument; <WRITES> where the output path goes
+writes = "<WORK>/<input>-<surface>.json"                # the file this run writes, recorded beside the streams; must begin with <WORK>/
+# inputs  = ["the one input this surface runs for"]        # optional: narrow the surface to some inputs
+# env     = { NAME = "value" }              # optional: extra variables for this surface; one the census pins is refused
+# needs   = ["fixture"]                     # optional: the [[setup]] steps that must have run first
+# counter = ["<PYTHON>", "<HERE>/counts.py", "<WRITES>"]   # optional: a command handed the written file, printing one JSON object of counts
+
+# A surface declared unrunnable here: the reason IS the golden, so an absent
+# recording is never mistaken for a surface nobody thought of.
+# [surfaces.unrunnable]
+# skip = "why this surface cannot be recorded here, as one sentence"
+
+# Many small runs recorded as ONE compacted file — a refusal matrix.
+# [surfaces.flagmatrix]
+# kind        = "matrix"
+# include     = "flagmatrix.json"           # the generated row file, committed beside this manifest
+# record_argv = ["the rows of flagmatrix.json"]
+
+# One run reduced to the verdict line of each fenced group.
+# [surfaces.tallies]
+# kind    = "tallies"
+# args    = ["--tallies"]
+# rule    = "="                             # the single character the subject fences its banners with
+# verdict = '^\s*\d+/\d+ passed\s*$'        # the regular expression matching each group's verdict line
+# failing = '^\s*(?:\[FAIL\]|actual:)'      # optional: every line of a group matching this is recorded under its verdict line — reach the failing row's evidence, not only its name
+
+# A named list of surfaces an input may ask for by one word.
+# [surface-sets]
+# tree = ["report", "export"]
+
+# Commands run once per capture, in the work directory, before the rows that
+# `needs` them: a relative path names one there, and <HERE> this file's own
+# directory. golden-census runs a subprocess and never imports the module.
+# [[setup]]
+# name    = "fixture"
+# command = ["<PYTHON>", "<HERE>/make_fixture.py", "<WORK>/fixture"]
+
+# Small text files written into <WORK> before any run, for a surface whose file
+# argument is the manifest's to state. Referenced as <WORK>/plan.txt in `args`.
+# [files."plan.txt"]
+# lines = ["the first line", "the second line"]
+
+# The permitted golden movements: a row that moved, and the attribution that
+# says why. A row not named here that moves is a diff like any other.
+# [[movements]]
+# path        = "the-input/the-surface.out"
+# attribution = "the change that moved it, and the reason for it"

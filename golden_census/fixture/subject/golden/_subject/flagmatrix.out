@@ -1,0 +1,19 @@
+pairs: 3
+usage-prefix-lines: 2
+stdout-prefix-lines: 0
+
+(--json, no value) exit=2
+  stderr tail-newline=yes
+    stub: error: argument --json: expected one argument
+  stdout tail-newline=no
+    
+(--nope, unknown) exit=2
+  stderr tail-newline=yes
+    stub: error: unrecognized arguments: --nope
+  stdout tail-newline=no
+    
+(--tallies, explicit value) exit=2
+  stderr tail-newline=yes
+    stub: error: argument --tallies: ignored explicit argument 'please'
+  stdout tail-newline=no
+    

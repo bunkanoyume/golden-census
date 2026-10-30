@@ -1,0 +1,50 @@
+# The bundled fixture's manifest — one input, one surface of every kind the
+# format defines (`run`, `skip`, `matrix`, `tallies`), so `--selftest`
+# records, compares and mutates the same shapes a consumer's manifest does.
+#
+# `root = "subject"` is relative to this file, and `--selftest` copies this
+# whole directory into a temporary one and `git init`s the copy's subject, so
+# the census's `git-checkout` precondition holds without anything being
+# written into golden-census's own repository.
+
+[subject]
+name    = "stub"
+root    = "subject"
+command = ["<PYTHON>", "stub.py"]
+version = ["--version"]
+census  = "census.toml"
+
+[inputs._subject]
+args     = []
+surfaces = ["report", "export", "help", "version", "refusal", "flagmatrix",
+            "tallies", "unrunnable"]
+
+[surfaces.report]
+args = []
+
+[surfaces.export]
+args   = ["--json", "<WRITES>"]
+writes = "<WORK>/<input>-<surface>.json"
+
+[surfaces.help]
+args = ["--help"]
+
+[surfaces.version]
+args = ["--version"]
+
+[surfaces.refusal]
+args = ["--one", "--two"]
+
+[surfaces.flagmatrix]
+kind        = "matrix"
+include     = "flagmatrix.json"
+record_argv = ["<the rows of flagmatrix.json>"]
+
+[surfaces.tallies]
+kind    = "tallies"
+args    = ["--tallies"]
+rule    = "="
+verdict = '^\s*\d+/\d+ passed\s*$'
+
+[surfaces.unrunnable]
+skip = "a surface declared unrunnable, so `--selftest` records the shape a consumer uses for a pin nobody can measure here; the reason IS the golden, and an absent golden is never mistaken for a surface nobody thought of"

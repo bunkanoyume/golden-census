@@ -1,0 +1,15 @@
+{
+  "provenance": {
+    "engine": {
+      "version": "1.2.0",
+      "commit": "<PROVENANCE>",
+      "dirty": false
+    }
+  },
+  "rows": 3,
+  "names": [
+    "alpha",
+    "beta",
+    "gamma"
+  ]
+}

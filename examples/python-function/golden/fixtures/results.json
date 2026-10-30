@@ -1,0 +1,102 @@
+{
+  "fixtures/hyphens.txt": {
+    "distinct": 9,
+    "ranked": [
+      {
+        "count": 2,
+        "word": "rule"
+      },
+      {
+        "count": 2,
+        "word": "state-of-the-art"
+      },
+      {
+        "count": 2,
+        "word": "well-known"
+      },
+      {
+        "count": 1,
+        "word": "a"
+      },
+      {
+        "count": 1,
+        "word": "about"
+      },
+      {
+        "count": 1,
+        "word": "again"
+      },
+      {
+        "count": 1,
+        "word": "the"
+      },
+      {
+        "count": 1,
+        "word": "tools"
+      },
+      {
+        "count": 1,
+        "word": "twice"
+      }
+    ],
+    "tokens": 12
+  },
+  "fixtures/plain.txt": {
+    "distinct": 13,
+    "ranked": [
+      {
+        "count": 3,
+        "word": "the"
+      },
+      {
+        "count": 2,
+        "word": "harness"
+      },
+      {
+        "count": 1,
+        "word": "a"
+      },
+      {
+        "count": 1,
+        "word": "afterwards"
+      },
+      {
+        "count": 1,
+        "word": "and"
+      },
+      {
+        "count": 1,
+        "word": "bytes"
+      },
+      {
+        "count": 1,
+        "word": "compares"
+      },
+      {
+        "count": 1,
+        "word": "guesses"
+      },
+      {
+        "count": 1,
+        "word": "never"
+      },
+      {
+        "count": 1,
+        "word": "produces"
+      },
+      {
+        "count": 1,
+        "word": "program"
+      },
+      {
+        "count": 1,
+        "word": "records"
+      },
+      {
+        "count": 1,
+        "word": "what"
+      }
+    ],
+    "tokens": 16
+  }
+}

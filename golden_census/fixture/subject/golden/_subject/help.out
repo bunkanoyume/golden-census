@@ -1,0 +1,19 @@
+usage: stub [-h] [--version] [--json PATH] [--tallies] [--secret] [--one]
+            [--two]
+
+A stub subject the harness's own --selftest drives. It prints a report
+carrying its working directory and the microseconds the scan took, writes a
+JSON export with a provenance block, prints a fenced tally block, and refuses
+one flag combination. This description is long enough that argparse has to
+wrap it at the terminal width, which is what the census's COLUMNS pin is for.
+
+options:
+  -h, --help   show this help message and exit
+  --version    print the stub's version and exit, and nothing else at all
+  --json PATH  write the export to PATH; the provenance block carries the
+               commit this tree is at
+  --tallies    print the fenced group blocks a tallies surface reduces to one
+               verdict line each
+  --secret     print the constant no recorded surface carries
+  --one        the first half of the combination that composes with nothing
+  --two        the second half; naming both is the refusal

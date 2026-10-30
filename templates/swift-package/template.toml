@@ -1,0 +1,43 @@
+# The swift-package template: a Swift Testing test that reads a job from the
+# environment, runs one pure function over the fixtures beside it and writes
+# the answers as canonical JSON to the path the job names. `swift test
+# --filter GoldenCensusRunner` is the subject command; `golden-census init <dir>
+# --template swift-package` writes the test on top of the neutral three.
+#
+# `docs/adding-a-template.md` is authoritative for every key below;
+# `README.md` beside this file is the pattern document.
+
+name    = "swift-package"      # equals the directory name; the word --template is spelled with
+summary = "a SwiftPM package under `swift test`: a test reads the job from the environment and writes JSON"
+
+# ----------------------------------------------------------------- the files
+#
+# The dest carries a hole: `init` writes the file into the literal
+# `<<HOLE:TEST_TARGET_DIR>>` directory and says so, and the file is MOVED into
+# the test target once the hole is filled.
+
+[[file]]
+source = "GoldenCensusRunner.swift"
+dest   = "<<HOLE:TEST_TARGET_DIR>>/GoldenCensusRunner.swift"
+
+# ----------------------------------------------------------------- the holes
+
+[[hole]]
+name        = "TEST_TARGET_DIR"
+description = "the test target's source directory, relative to the project — `Tests/MyPackageTests`; the runner file is written under the literal hole and must be moved there"
+
+[[hole]]
+name        = "MODULE"
+description = "the module the function lives in, as `@testable import` spells it — the package's library target"
+
+[[hole]]
+name        = "FIXTURES"
+description = "the fixture files beside the runner, one quoted name per element — `\"a.txt\", \"b.txt\"`; each is resolved against the runner's own directory"
+
+[[hole]]
+name        = "LOAD_INPUT"
+description = "the statement(s) that turn the fixture at `url` into the function's input — `let text = try String(contentsOf: url, encoding: .utf8)`"
+
+[[hole]]
+name        = "FUNCTION_CALL"
+description = "the call to the pure function over the loaded input, whose value is `Encodable` — `MyModule.parse(text)`"

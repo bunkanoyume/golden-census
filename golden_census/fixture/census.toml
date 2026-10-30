@@ -1,0 +1,92 @@
+# The bundled fixture's census — one row of every shape `census-format.md`
+# defines, so `--selftest` exercises the whole loader and every control.
+#
+# Every `finding` here states what was SEEN to move a surface of the stub
+# subject beside this file, exactly as a consumer's would.
+
+[environment]
+inherit     = false
+passthrough = ["PATH", "HOME"]
+
+[fixtures]
+dir = "fixtures"
+
+# ------------------------------------------------------------------- pins
+
+[[input]]
+name        = "terminal width"
+disposition = "pin"
+variable    = "COLUMNS"
+value       = "80"
+finding     = "argparse wraps the stub's long description and every flag's help text at $COLUMNS; the same --help is 21 lines at 80 and 34 at 40"
+control     = { shape = "vary", surface = "_subject/help", value = "40" }
+
+[[input]]
+name        = "the subject's temp root, and its width"
+disposition = "pin"
+variable    = "TMPDIR"
+value       = "<FIXED-WIDTH-DIR:51>"
+finding     = "the stub reads no temp path, so this row exists to exercise the width rule the format defines; 51 is a width a real consumer measured for itself, and it fits every temp root of at most 49 characters, which is 51 less the root's own separator and a one-character name, while the arithmetic arms of the builtin control run on constructed widths regardless"
+control     = { shape = "builtin", name = "fixed-width-dir" }
+
+[[input]]
+name        = "the clock renderers read"
+disposition = "pin"
+variable    = "SOURCE_DATE_EPOCH"
+value       = "0"
+finding     = "a renderer stamps the second it ran into what it writes, so two runs of one unchanged input differ by bytes nobody edited and every later comparison reports them; the stub itself reads no clock, and the pin is here because a subject that shells out to a renderer is the common case"
+control     = { shape = "drift", command = ["<PYTHON>", "-c", "import os, time; open('<WORK>/stamp.txt', 'w').write(os.environ.get('SOURCE_DATE_EPOCH') or repr(time.time()))"], output = "<WORK>/stamp.txt", wait = 1.2 }
+
+# ------------------------------------------------------------------ folds
+
+[[input]]
+name        = "the subject root's absolute path"
+disposition = "fold"
+kind        = "path"
+source      = "root"
+placeholder = "<REPO>"
+finding     = "the report prints its own working directory, and the recorded argv of every row is resolved against the root; without the fold no golden reproduces in a second temp directory"
+
+[[input]]
+name        = "golden-census's work directory"
+disposition = "fold"
+kind        = "path"
+source      = "work"
+placeholder = "<TMPROOT>"
+finding     = "the export surface writes under <WORK> and prints `wrote <path>`; both the stdout line and the recorded argv carry the directory"
+
+[[input]]
+name        = "the stub's own scan duration"
+disposition = "fold"
+kind        = "regex"
+pattern     = '(?P<volatile>\b\d+us\b)'
+placeholder = "<DURATION>"
+scope       = ["_subject/report"]
+finding     = "the report's last line prints the microseconds the scan took, and two captures of an unchanged stub differ in exactly that token; the fold replaces the token, so `scan finished in` on the same line stays a byte comparison"
+control     = { sample = "  scan finished in 137us", moved = "  scan finished in 2041us" }
+
+[[input]]
+name        = "the export's provenance commit"
+disposition = "fold"
+kind        = "json-fields"
+paths       = ["provenance.engine"]
+fields      = ["commit"]
+placeholder = "<PROVENANCE>"
+serialization = { indent = 2, ensure_ascii = false }
+finding     = "the stub reads its commit from git, so a clone that commits a mutant carries a different sha; without the fold the comparator would fire on every mutant for the sha alone and say nothing about the mutant"
+control     = { sample = "provenance-sample.json", moved = "provenance-moved.json" }
+
+# --------------------------------------------------------- state, precondition
+
+[[input]]
+name        = "locale, and the width the subject actually sees"
+disposition = "state"
+variables   = ["LANG", "LC_ALL", "COLUMNS"]
+finding     = "not observed to move a surface; recorded so a capture that moves under another locale can be attributed, and so the COLUMNS pin can be read back as the subject sees it"
+
+[[input]]
+name        = "the subject's tree is a clean git checkout"
+disposition = "precondition"
+check       = "git-checkout"
+clean       = true
+finding     = "the export reads its commit from git, so a tree that is not a repository exports `unknown` and a dirty tree exports a sha that is not what was built; `--selftest` puts the stub in a repository of its own at run time so the row holds"

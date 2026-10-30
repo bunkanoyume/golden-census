@@ -1,0 +1,50 @@
+# The mutants file: deliberate small changes to the subject's code, each with
+# the name of the check that must catch it. `golden-census mutants` plants every one
+# in a repo-shaped copy of the subject, runs every check, and prints the table
+# mutant × check → FIRED, SILENT or REFUSED. A mutant no check catches is a
+# FAIL of golden-census, not of the subject: it shows a hole in the net.
+# `docs/mutants-format.md` is authoritative for every key.
+#
+# `golden-census init` wrote this file with its holes IN PLACE; `mutants` REFUSES a
+# file that still spells one.
+
+# ------------------------------------------------------------------ checks
+
+[checks.comparator]
+builtin = "compare"                # golden-census's own: a full capture of the mutated copy under the manifest, compared to `golden`; FIRED when it is not IDENTICAL
+golden  = "<HERE>/golden"        # the golden directory that capture is compared against; docs/mutants-format.md says how the path resolves
+
+# A check of the consumer's own: any command, with the condition that counts
+# as caught. Two or more checks that catch DIFFERENT mutants is the point of
+# the table; one check that catches everything proves only that it is loud.
+[checks.label]
+command = ["<PYTHON>", "examples/python-function/label_check.py"]   # cwd = the MUTATED COPY, because that path is a file inside it
+fires   = { absent = "wordstats/1" }      # FIRED when the text a clean run prints is MISSING
+
+# The other two shapes the format offers, unused here and left as the neutral
+# template wrote them:
+# [checks.differential]
+# command = ["<PYTHON>", "run_differential.py", "<ROOT>"]   # cwd = this file's directory; <ROOT> is the MUTATED COPY, never the original
+# fires   = "exit-nonzero"                  # FIRED when the command exits non-zero
+
+# [checks.one-walk]
+# command = ["<PYTHON>", "tool/__main__.py", "--selftest"]  # cwd = <ROOT>, because the first element after <PYTHON> is a path inside it
+# fires   = { pattern = '\[FAIL\]' }        # FIRED when the regular expression matches stdout or stderr
+
+# ----------------------------------------------------------------- mutants
+
+[[mutant]]
+name    = "the hyphen rule the counts carry"  # the row of the printed table and the word every refusal about it uses
+file    = "examples/python-function/wordstats/tokenize.py"  # the subject file this mutant edits, relative to the subject root
+find    = "HYPHEN_JOINS = True"  # the exact current text; it must occur EXACTLY once in that file, or the run is refused naming the mutant
+replace = "HYPHEN_JOINS = False"    # what that text becomes
+expect  = ["comparator"]           # the checks that MUST fire; every other verdict is reported and does not gate
+
+# A second mutant, aimed at a check the comparator cannot make: something no
+# recorded surface carries, which only a command check can see.
+[[mutant]]
+name    = "a constant no recorded surface carries"
+file    = "examples/python-function/wordstats/tokenize.py"
+find    = 'LABEL = "wordstats/1"'
+replace = 'LABEL = "wordstats/2"'
+expect  = ["label"]

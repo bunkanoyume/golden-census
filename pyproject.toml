@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+# hatchling, not setuptools: golden-census is stdlib-only, and the two things
+# this build needs — a version read out of `golden_census/__init__.py` WITHOUT
+# importing the package (the build backend runs under its own interpreter and
+# must not need 3.11 to read a string), and shipping `templates/` and
+# `examples/` from the repository ROOT into the wheel without moving them —
+# are both first-class here and neither needs a plugin. setuptools reads a
+# dynamic version by importing the module or through a third-party plugin, and
+# its data-file support does not reach outside the package directory.
+
+[project]
+name = "golden-census"
+dynamic = ["version"]
+description = "A characterization harness: run a subject over a manifest of surfaces, record the bytes, compare them later."
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE.txt"]
+dependencies = []
+
+# The console script. It calls `console.main` directly, so the entry point of
+# `python3 -m golden_census` — `golden_census/__main__.py`, which carries the
+# interpreter-floor guard — is not on this path; `requires-python` above is
+# what keeps a 3.9 or 3.10 from installing the package at all.
+[project.scripts]
+golden-census = "golden_census.console:main"
+
+# ONE owner for the version: `golden_census.__version__`.
+# hatchling reads the assignment out of the file with a regex and imports
+# nothing, so the owner stays readable by a build backend running on any
+# interpreter — `golden_census/__init__.py` imports `os` and `sys` for the
+# self-check's directory line and nothing of the package's own, and must
+# stay so.
+[tool.hatch.version]
+path = "golden_census/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["golden_census"]
+
+# The shipped data, in the wheel only. Every row STAYS where it is at the
+# repository root — nothing moves here — and the wheel carries a COPY of each
+# under the package, in the checkout's own shape, which is the layout
+# `core.data_in` tries second. Two layouts, one asker: beside the package in
+# a checkout, inside it in an install. The set is what a user or an agent
+# reads: the templates `init` writes from, the worked example, the format
+# documents and the manual, the README that links them, the license beside
+# it, and the skill. `CONTRIBUTING.md` is for whoever changes the code and
+# travels in the sdist alone.
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "golden_census/_shipped/templates"
+"examples" = "golden_census/_shipped/examples"
+"docs" = "golden_census/_shipped/docs"
+"golden-census-skill" = "golden_census/_shipped/golden-census-skill"
+"README.md" = "golden_census/_shipped/README.md"
+"LICENSE.txt" = "golden_census/_shipped/LICENSE.txt"
+
+# The sdist carries the repository's own shape, so the two directories are
+# named where they live and the launcher travels with them. Every pattern is
+# ANCHORED with a leading `/`: hatchling matches an unanchored name at any
+# depth, so a bare package name would ship any directory of that name wherever
+# it sits. Arm `sss` of `--selfcheck` reads this table and refuses an
+# unanchored pattern.
+[tool.hatch.build.targets.sdist]
+include = [
+  "/golden_census",
+  "/templates",
+  "/examples",
+  "/bin",
+  "/golden-census-skill",
+  "/docs/*.md",
+  "/README.md",
+  "/CONTRIBUTING.md",
+  "/LICENSE.txt",
+  "/pyproject.toml",
+  "/mypy.ini",
+]
+
+# Correctness-only rule set. golden-census is stdlib-only and its floor is the
+# interpreter the manifest documents, not the one that happens to run it.
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "UP", "W"]

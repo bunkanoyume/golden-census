@@ -1,0 +1,91 @@
+# The neutral template: the three files every golden-census project has,
+# whatever language the subject is written in. `golden-census init <dir>`
+# always writes these first; `--template NAME` adds a runner, and a wrapper where the test tool
+# needs one, on top of them.
+#
+# `docs/adding-a-template.md` is authoritative for every key below.
+
+name    = "_neutral"      # equals the directory name; the word --template is spelled with
+summary = "the manifest, the census and the mutants file, with every key commented and every project fact left as a hole"
+
+# ----------------------------------------------------------------- the files
+#
+# `source` is relative to this template directory, `dest` to the project
+# directory `init` was given. No dest here carries a hole: the three files land
+# beside each other at the top of the project, which is where every command's
+# --manifest points.
+
+[[file]]
+source = "manifest.toml"      # what to run, and what to record
+dest   = "manifest.toml"
+
+[[file]]
+source = "census.toml"        # what the environment around every run is pinned to
+dest   = "census.toml"
+
+[[file]]
+source = "mutants.toml"       # the planted changes the checks must catch
+dest   = "mutants.toml"
+
+# ----------------------------------------------------------------- the holes
+#
+# Every hole the three files spell, declared. The self-check holds this list
+# and the files to parity in both directions: a hole spelled and not declared
+# is a value `init` never mentions, and a hole declared and spelled nowhere is
+# a question asked about nothing.
+
+[[hole]]
+name        = "SUBJECT_NAME"
+description = "the subject's own short name, not a path: the name printed at the head of every comparison"
+
+[[hole]]
+name        = "ROOT"
+description = "the subject's checkout directory, relative to the manifest: the cwd of every run and the directory `<ROOT>` expands to"
+
+[[hole]]
+name        = "COMMAND"
+description = "the argv prefix of every run, after `<PYTHON>` — the entry point that takes the arguments below (drop the `<PYTHON>` element for a compiled subject)"
+
+[[hole]]
+name        = "INPUT_NAME"
+description = "the name of the first input the surfaces are run over — the first half of every recorded row's `<input>/<surface>` key"
+
+[[hole]]
+name        = "INPUT_ARGS"
+description = "that input's own arguments, one string per argument; write `args = []` for an input that takes none"
+
+[[hole]]
+name        = "SURFACE_NAME"
+description = "the name of the first surface — the second half of the row key, and the base name of every file recorded for it"
+
+[[hole]]
+name        = "SURFACE_ARGS"
+description = "that surface's arguments, one string per argument, with `<WRITES>` where the output path goes"
+
+[[hole]]
+name        = "WRITES_EXT"
+description = "the extension of the file the surface writes (`json`, `txt`, `dot`), which is what the recorded copy is named after"
+
+[[hole]]
+name        = "VERSION_COMMANDS"
+description = "the words of one tool's version command, one quoted string each, in place of the quoted hole: `\"<PYTHON>\", \"--version\"`. One inner list per further tool; the state block prints the first line of each"
+
+[[hole]]
+name        = "GOLDEN"
+description = "the golden directory a capture of the mutated copy is compared against; docs/mutants-format.md says how the path resolves"
+
+[[hole]]
+name        = "MUTANT_NAME"
+description = "the first mutant's name — the row of the printed table and the word every refusal about it uses"
+
+[[hole]]
+name        = "MUTANT_FILE"
+description = "the subject file the mutant edits, relative to the subject root"
+
+[[hole]]
+name        = "MUTANT_FIND"
+description = "the exact text the mutant replaces; it must occur EXACTLY once in that file, or the run is refused naming the mutant"
+
+[[hole]]
+name        = "MUTANT_REPLACE"
+description = "what that text becomes — a change small enough that only the checks, and not a reader, would notice it"

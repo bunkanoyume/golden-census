@@ -1,0 +1,5 @@
+[
+  {"label": "(--json, no value)", "args": ["--json"]},
+  {"label": "(--tallies, explicit value)", "args": ["--tallies=please"]},
+  {"label": "(--nope, unknown)", "args": ["--nope"]}
+]

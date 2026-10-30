@@ -1,0 +1,56 @@
+{
+  "export": {
+    "argv": [
+      "--json",
+      "<TMPROOT>/_subject-export.json"
+    ],
+    "exit": 0,
+    "status": "captured"
+  },
+  "flagmatrix": {
+    "argv": [
+      "<the rows of flagmatrix.json>"
+    ],
+    "exit": 0,
+    "status": "captured"
+  },
+  "help": {
+    "argv": [
+      "--help"
+    ],
+    "exit": 0,
+    "status": "captured"
+  },
+  "refusal": {
+    "argv": [
+      "--one",
+      "--two"
+    ],
+    "exit": 2,
+    "status": "captured"
+  },
+  "report": {
+    "argv": [],
+    "exit": 0,
+    "status": "captured"
+  },
+  "tallies": {
+    "argv": [
+      "--tallies"
+    ],
+    "exit": 0,
+    "status": "captured"
+  },
+  "unrunnable": {
+    "argv": [],
+    "reason": "a surface declared unrunnable, so `--selftest` records the shape a consumer uses for a pin nobody can measure here; the reason IS the golden, and an absent golden is never mistaken for a surface nobody thought of",
+    "status": "skipped"
+  },
+  "version": {
+    "argv": [
+      "--version"
+    ],
+    "exit": 0,
+    "status": "captured"
+  }
+}

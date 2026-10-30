@@ -1,0 +1,2 @@
+usage: stub [-h] [--version] [--json PATH] [--tallies] [--secret] [--one]
+            [--two]

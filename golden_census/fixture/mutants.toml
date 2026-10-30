@@ -1,0 +1,28 @@
+# The bundled fixture's mutants — two, chosen so that each is caught by a
+# DIFFERENT instrument and neither is caught by both. A table where one check
+# catches everything proves only that the check is loud.
+#
+# Written against the stub as it stands beside this file; a `find` that has
+# moved is a refusal naming the mutant, never a silent pass.
+
+[checks.comparator]
+builtin = "compare"
+golden  = "golden"            # relative to the subject root: subject/golden
+
+[checks.probe]
+command = ["<PYTHON>", "stub.py", "--secret"]     # cwd = the mutated clone
+fires   = { absent = "SECRET=ok" }
+
+[[mutant]]
+name    = "the row count every surface carries"
+file    = "stub.py"
+find    = "ROWS = 3"
+replace = "ROWS = 4"
+expect  = ["comparator"]
+
+[[mutant]]
+name    = "a constant no recorded surface carries"
+file    = "stub.py"
+find    = 'SECRET = "SECRET=ok"'
+replace = 'SECRET = "SECRET=moved"'
+expect  = ["probe"]

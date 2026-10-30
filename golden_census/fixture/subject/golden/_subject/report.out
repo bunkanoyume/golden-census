@@ -1,0 +1,4 @@
+stub report
+  cwd: <REPO>
+  rows: 3
+  scan finished in <DURATION>

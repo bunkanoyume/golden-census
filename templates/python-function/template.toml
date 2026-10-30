@@ -1,0 +1,33 @@
+# The python-function template: one runner script that imports a Python
+# function, calls it over a list of fixture files and writes the answers as
+# sorted-key JSON to the path golden-census names. `golden-census init <dir> --template
+# python-function` writes it on top of the neutral three.
+#
+# `docs/adding-a-template.md` is authoritative for every key below;
+# `README.md` beside this file is the pattern document.
+
+name    = "python-function"      # equals the directory name; the word --template is spelled with
+summary = "a Python function: a runner script imports it, loads each fixture, dumps sorted-key JSON"
+
+# ----------------------------------------------------------------- the files
+
+[[file]]
+source = "runner.py"          # the subject command: `runner.py <out>`
+dest   = "runner.py"
+
+# ----------------------------------------------------------------- the holes
+#
+# Three, and every one is a fact only the project knows. Each is written in
+# place in runner.py; `init` prints the list and never guesses a value.
+
+[[hole]]
+name        = "MODULE"
+description = "the module the function lives in, as `import` spells it — importable from the runner's own directory, which is the first entry on sys.path when a script runs"
+
+[[hole]]
+name        = "FIXTURES"
+description = "the fixture files the function is run over, one quoted path per element, each relative to the runner's own directory — `\"fixtures/a.txt\", \"fixtures/b.txt\"`"
+
+[[hole]]
+name        = "FUNCTION_CALL"
+description = "one expression calling the function over `text` (the fixture's contents) and `path` (its path), whose value `json.dumps` can serialize — `mymodule.parse(text)`"

@@ -1,0 +1,159 @@
+# The census: everything around the subject that is not the subject's code.
+# Each [[input]] row is one thing that can move a surface — an environment
+# variable, the width of the temp root, the clock a renderer reads, the
+# checkout's absolute path — with its disposition and, for pins and folds, the
+# control that proves the disposition matters.
+# `docs/census-format.md` is authoritative for every key.
+#
+# `golden-census init` wrote this file with its holes IN PLACE; every command REFUSES
+# a census that still spells one.
+
+[environment]
+inherit     = false                # the only value golden-census accepts: every subject subprocess runs under an environment built FROM NOTHING
+passthrough = ["PATH", "HOME"]     # the variables carried through by name, on top of the pins below; nothing else reaches the subject
+
+# [fixtures]
+# dir = "fixtures"                 # optional: the small files the controls need, relative to this census; <FIXTURE> in a control command
+
+# --------------------------------------------------------------------- pins
+#
+# A pin sets a variable to a constant in every subject environment, and its
+# control shows the surface moves without it.
+
+# Why 51. golden-census makes the subject a TMPDIR of exactly 51 characters and
+# pins it there — the same width golden-census's own built-in default uses. The
+# width is FIXED so that a temp path reaching an output folds as one token of
+# constant length: a subject that prints a temp path through a fixed-width
+# slice records a whole directory name under a short root and half a path
+# under a wide one, and no fold recognizes the half. A directory made under
+# a root needs the root, one separator and at least one character of name, so
+# the widest temp root a 51-character pin can run under is 49 — the census's
+# own arithmetic, on every platform. A wider root is a REFUSAL naming the
+# cause, whose `next:` line names the command that prints a root that fits on
+# the platform you are on.
+# The generic rule is `<FIXED-WIDTH-DIR:N>` in docs/census-format.md.
+[[input]]
+name        = "the subject's temp root, and its width"   # the row's word: what every control row and every refusal about it says
+disposition = "pin"                # pinned to a constant in every subject environment
+variable    = "TMPDIR"             # the environment variable this row pins
+value       = "<FIXED-WIDTH-DIR:51>"   # the one value golden-census resolves itself: a fresh directory of exactly 51 characters, removed in finally
+finding     = "the length of TMPDIR, not the subject, decides how much of a temp path reaches a golden whenever a subject prints one through a fixed-width slice; pinning the width moves that decision out of the machine and into this file"
+control     = { shape = "builtin", name = "fixed-width-dir" }   # golden-census's own: arithmetic on constructed widths, plus one real directory when this machine's root fits
+
+# A pin whose control VARIES the value and expects the named surface to move.
+# [[input]]
+# name        = "terminal width"
+# disposition = "pin"
+# variable    = "COLUMNS"
+# value       = "80"
+# finding     = "argparse and most renderers wrap at $COLUMNS, so an unpinned width moves a surface by itself"
+# control     = { shape = "vary", surface = "the-input/the-surface", value = "40" }
+
+# A pin for an input that moves with TIME rather than with a value golden-census
+# can choose: the command is run twice `wait` seconds apart with and without it.
+# [[input]]
+# name        = "the clock renderers read"
+# disposition = "pin"
+# variable    = "SOURCE_DATE_EPOCH"
+# value       = "0"
+# finding     = "a renderer stamps the time into what it writes, so two runs a second apart differ by bytes nobody changed"
+# control     = { shape = "drift", command = ["<PYTHON>", "-c", "import os, time; open('<WORK>/stamp.txt', 'w').write(os.environ.get('SOURCE_DATE_EPOCH') or repr(time.time()))"], output = "<WORK>/stamp.txt", wait = 1.2 }
+
+# -------------------------------------------------------------------- folds
+#
+# A fold lets an input vary and replaces the token it leaves in the output
+# with a placeholder. The four `path` folds below name the four directories
+# golden-census itself knows the absolute path of; the contraband scan REFUSES a
+# capture that leaks one of them, so a missing fold is a refusal later rather
+# than a golden now. A path fold's control is built in — the directory folds
+# to its placeholder, and an absolute path golden-census did not make survives.
+
+[[input]]
+name        = "the subject root's absolute path"   # the row's word
+disposition = "fold"               # let it vary, and replace what it leaves behind
+kind        = "path"               # one of the four directories golden-census made or was given
+source      = "root"               # which one: root, work, clone, fixed-width-dir
+placeholder = "<REPO>"             # the token the folded text is replaced by in every golden
+finding     = "the checkout's absolute path reaches a surface through recorded argv, a printed working directory or a resolved input path, and without the fold no golden reproduces in a second directory"
+
+[[input]]
+name        = "golden-census's work directory"
+disposition = "fold"
+kind        = "path"
+source      = "work"
+placeholder = "<TMPROOT>"
+finding     = "every file a surface `writes` lands under <WORK>, and both the path handed to the subject and whatever the subject prints about it carry the directory"
+
+# A fold of a token that moves inside a line — a duration, a pid, a stamp.
+# Only the (?P<volatile>...) group is replaced, so the rest of the line stays a
+# byte comparison.
+# [[input]]
+# name        = "the scan duration the report prints"
+# disposition = "fold"
+# kind        = "regex"
+# pattern     = '(?P<volatile>\b\d+us\b)'
+# placeholder = "<DURATION>"
+# scope       = ["the-input/the-surface"]   # optional: the <input>/<surface> rows this fold applies to
+#                                           # the default is every row; say it out loud as scope = "*", never as a list
+# finding     = "the last line prints the microseconds the run took, and two captures of an unchanged subject differ in exactly that token"
+# control     = { sample = "  scan finished in 137us", moved = "  scan finished in 2041us" }
+
+# A fold of named fields inside a JSON document the subject writes.
+# [[input]]
+# name        = "the export's provenance commit"
+# disposition = "fold"
+# kind        = "json-fields"
+# paths       = ["provenance.engine"]       # the dotted paths, resolved from the document root
+# fields      = ["commit"]                  # the keys blanked under each path
+# placeholder = "<PROVENANCE>"
+# serialization = { indent = 2, ensure_ascii = false }   # exactly the subject's own json.dumps call; the round trip is asserted
+# finding     = "the subject stamps the commit it was built from, so every mutant's clone would differ for the sha alone and say nothing about the mutant"
+# control     = { sample = "provenance-sample.json", moved = "provenance-moved.json" }   # two files under [fixtures]
+
+# ------------------------------------------------------------------- state
+#
+# Stated, not pinned: printed in the capture log so a movement can be
+# attributed, and never recorded as a golden — a version string that moves
+# between machines would make every golden a statement about the machine.
+
+[[input]]
+name        = "the tool versions this capture was taken under"   # the row's word
+disposition = "state"              # read and printed, never pinned and never folded
+# the state block prints only the FIRST LINE of each command, so pipe a multi-line answer into one (`… | tr '\n' ' '`)
+commands    = [["<PYTHON>", "--version"]]     # one argv list per tool
+# variables = ["LANG", "LC_ALL"]   # optional: variables read AS THE SUBJECT SEES THEM — an unlisted one reads <unset>
+finding     = "the subject's output is toolchain-bound wherever it shells out to another program, so an upgrade that moves a surface is attributed as a toolchain change and not as a subject change"
+
+# ------------------------------------------------------------ preconditions
+#
+# Checked before the first run. A failure is a REFUSAL naming the check, never
+# a FAIL: a FAIL is a statement about the subject, a REFUSAL about the run.
+
+[[input]]
+name        = "the subject's tree is a git checkout"   # the row's word
+disposition = "precondition"       # asked about the machine before anything runs
+check       = "git-checkout"       # `git rev-parse --is-inside-work-tree` must answer true in the subject root
+clean       = false                # true also requires `git status --porcelain` to print nothing
+finding     = "a copy with no repository is a different subject: anything the subject reads from git — a commit stamp, a describe line, a dirty flag — changes shape or disappears, and the capture log's `git log -1 --oneline` is what a later reader attributes a movement against"
+
+# Any other question about the machine, asked as a command.
+# [[input]]
+# name        = "the tool the subject shells out to is installed"
+# disposition = "precondition"
+# check       = "command"
+# command     = ["git", "--version"]        # may spell <ROOT>, <WORK>, <CLONE> and <PYTHON>; its cwd is <ROOT>
+# expect      = "exit 0"                    # or "empty stdout"
+# finding     = "the surface that tool produces is empty without it, and an empty golden looks like a surface nobody thought of"
+
+# A file the subject READS from outside its tree — a cache, a database, a
+# downloaded index — held still by its checksum: golden-census records what the
+# subject printed and wrote, and never that file, so without this row a
+# comparison against a different copy of it says IDENTICAL.
+# [[input]]
+# name        = "the index is the one the golden was recorded against"
+# disposition = "precondition"
+# check       = "command"
+# command     = ["shasum", "-a", "256", "-c", "sums.txt"]   # its cwd is <ROOT>
+# expect      = "exit 0"                    # commit the new sums.txt with the new golden
+# finding     = "the subject answers from this file; a different one moves every row"
+

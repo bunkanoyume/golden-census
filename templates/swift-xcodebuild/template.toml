@@ -1,0 +1,49 @@
+# The swift-xcodebuild template: the same Swift Testing runner as
+# swift-package, plus the wrapper that runs ONE test under `xcodebuild test`
+# quietly, entitles the sandboxed test host to write the out file, disables
+# parallel test hosts and makes the out file — not the exit code — the
+# verdict. `golden-census init <dir> --template swift-xcodebuild` writes both on
+# top of the neutral three.
+#
+# `docs/adding-a-template.md` is authoritative for every key below;
+# `README.md` beside this file is the pattern document.
+
+name    = "swift-xcodebuild"      # equals the directory name; the word --template is spelled with
+summary = "an Xcode app or framework: the same runner test, plus a wrapper that runs it under a quiet `xcodebuild test` with no parallel test hosts, lets the sandboxed test host write the file, and checks the file"
+
+# ----------------------------------------------------------------- the files
+#
+# The runner's dest carries a hole: `init` writes it into the literal
+# `<<HOLE:TEST_TARGET_DIR>>` directory and says so, and the file is MOVED into
+# the test target once the hole is filled. The wrapper spells no hole: every
+# fact about the project is an argument on the manifest's `command` line.
+
+[[file]]
+source = "GoldenCensusRunner.swift"
+dest   = "<<HOLE:TEST_TARGET_DIR>>/GoldenCensusRunner.swift"
+
+[[file]]
+source = "wrapper.py"
+dest   = "golden-census/wrapper.py"
+
+# ----------------------------------------------------------------- the holes
+
+[[hole]]
+name        = "TEST_TARGET_DIR"
+description = "the test target's source directory, relative to the project — `MyAppTests`; the runner file is written under the literal hole and must be moved there"
+
+[[hole]]
+name        = "MODULE"
+description = "the module the function lives in, as `@testable import` spells it — the app or framework target"
+
+[[hole]]
+name        = "FIXTURES"
+description = "the fixture files beside the runner, one quoted name per element — `\"a.txt\", \"b.txt\"`; each is resolved against the runner's own directory"
+
+[[hole]]
+name        = "LOAD_INPUT"
+description = "the statement(s) that turn the fixture at `url` into the function's input — `let text = try String(contentsOf: url, encoding: .utf8)`"
+
+[[hole]]
+name        = "FUNCTION_CALL"
+description = "the call to the pure function over the loaded input, whose value is `Encodable` — `MyModule.parse(text)`"

@@ -1,0 +1,3 @@
+the harness records what a program produces
+and compares the bytes afterwards
+the harness never guesses
