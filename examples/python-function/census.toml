@@ -94,7 +94,7 @@ finding     = "every file a surface `writes` lands under <WORK>, and both the pa
 # pattern     = '(?P<volatile>\b\d+us\b)'
 # placeholder = "<DURATION>"
 # scope       = ["the-input/the-surface"]   # optional: the <input>/<surface> rows this fold applies to
-#                                           # the default is every row; say it out loud as scope = "*", never as a list
+#                                           # the default is every row, said out loud as scope = "*" (a list holding only "*" means the same)
 # finding     = "the last line prints the microseconds the run took, and two captures of an unchanged subject differ in exactly that token"
 # control     = { sample = "  scan finished in 137us", moved = "  scan finished in 2041us" }
 

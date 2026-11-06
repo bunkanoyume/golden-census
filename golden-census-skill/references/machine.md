@@ -2,12 +2,12 @@
 
 Open this file when a refusal names `TMPDIR`, `HOME` or a cache directory, when you work on Linux, or when a manifest pins an input to a commit. A refusal's `next:` line says what to do; this file states the rules behind it.
 
-The manual (`docs/manual.md`) says the same for a person, and `docs/manifest-format.md` has the whole rule for a pinned input; both are under the `docs` directory `golden-census --help` names.
+`docs/manifest-format.md` has the whole rule for a pinned input. `golden-census --help` names the `docs` directory.
 
 ## Run one command at a time
 
-- `SKILL.md` step 5 states the rule: one command at a time, and nothing changed under the subject, the golden directory or the temp root while it runs.
-- A pinned input whose kept clone a row has dirtied is skipped by later captures until the clone is deleted (`references/census.md`, "What a row leaves behind"). A file edited during a run is read as it was when the run reached it.
+- `SKILL.md`, "Run it", states the rule: one command at a time, and nothing changed under the subject, the golden directory or the temp root while it runs.
+- When a row dirties the kept clone of a pinned input, later captures skip that input until the clone is deleted (`references/census.md`, "What a row leaves behind"). A file edited during a run is read as it was when the run reached it.
 
 ## The temp root
 
@@ -16,8 +16,8 @@ golden-census makes its scratch directories under the temp root. That is `TMPDIR
 1. **Use an absolute path.** golden-census starts each child in a directory of its own, where a relative path names a different directory.
 2. **Spell it without `..`.** After a symbolic link, `..` names the parent of the link's target, not the directory spelled before it.
 3. **Point it at a root where a directory can be made.** golden-census makes no temp root and tries no other. An unset or empty `TMPDIR` falls back to Python's own choice.
-4. **Keep it narrow.** A capture needs a root of at most 49 characters. The census pins the subject's own `TMPDIR` to 51, and a directory made under a root needs the root, a separator and a name. A Unix socket path holds 103 characters, and a socket a `mutants` check makes under its own `TMPDIR` fits only under a root of that width.
-   - Every command that runs the subject, `capture`, `compare` without `--against`, `mutants` and `probe`, refuses under a wider root. `census` runs under one and says so twice: a `note:` under its rows that a capture here would REFUSE, and a `[SKIP]` of the fixed-width-dir control's real-directory arm.
+4. **Keep it narrow.** A capture needs a root of at most 49 characters. The census pins the subject's own `TMPDIR` to 51, and a directory made under a root needs the root, a separator and at least one character of name. A Unix socket path holds 103 characters, and a socket a `mutants` check makes under its own `TMPDIR` fits only under a root of that width.
+   - `capture`, `compare` without `--against` and `probe` refuse under a wider root. `mutants` makes no fixed-width directory of its own: a `compare` check's capture refuses and the null mutant then refuses the run, while a mutants file of `command` checks alone runs to a verdict at any width. `census` runs under a wider root and says so twice: a `note:` under its rows that a capture here would REFUSE, and a `[SKIP]` of the fixed-width-dir control's real-directory arm.
    - A root that fits is `$(getconf DARWIN_USER_TEMP_DIR)` on macOS and `/tmp` on Linux.
 5. **On Linux, mind tmpfs.** The temp root is usually `/tmp`, a tmpfs sized at a fraction of RAM. `mutants` holds a clone and a capture per mutant under it, and `capture --twice` holds two capture trees. For a large subject, point `TMPDIR` at `/var/tmp`.
 
@@ -28,6 +28,7 @@ The check of the root runs right after the process-group line. It runs before th
 ## Standard input and operating-system errors
 
 - Every child golden-census starts has the null device as its standard input. A child that reads meets end of file at once, whatever golden-census itself was started with.
+- golden-census has no key for a subject's standard input. To feed one, write the text into `<WORK>` with `[files]`, set a variable to its path in the surface's `env`, and start the subject through a shell that reads from it: `command = ["sh", "-c", "exec \"$0\" \"$@\" < \"${SUBJECT_STDIN:-/dev/null}\"", "<the subject>"]`. A row whose `env` does not set the variable reads the null device, as before.
 - An error of the operating system that none of golden-census's own checks answers is one `REFUSED:` sentence on standard output, at exit 2. It quotes the error as Python states it. It is never a traceback. Examples are a disk that fills, a file-size limit, and a directory removed or made read-only under the run.
 - What was printed above such a sentence is not a whole verdict. Fix what the error names and run the command again.
 
@@ -49,7 +50,7 @@ A manifest input pinned with `git` and `sha` is cloned once into a persistent ca
 - A clone's folder found with files in it and no `.git` directory is a clone cut short. That input is SKIPPED, and the reason names the folder to delete.
 - There is no index and no file beside the clones. Delete one commit, one repository or the whole cache whenever you like. The next run clones again.
 - The cache directory is checked right before a clone is made. A command about to clone is refused there, after whatever ran before that clone, in three cases. The cache directory cannot be written. `HOME` is not an absolute path. `HOME` (on Linux, `XDG_CACHE_HOME`) is spelled with `..`. A command that clones nothing is never asked and makes no folder.
-- A git step that fails inside a clone kept from an earlier run is that input SKIPPED. The reason names the directory and says to delete it and capture again.
+- A git step that fails inside a clone kept from an earlier run marks that input SKIPPED. The reason names the directory and says to delete it and capture again.
 
 ## The settings of git
 

@@ -100,8 +100,8 @@ builds for another destination spells it.
 
 ## 4. Why each step of the wrapper exists
 
-- **argparse, and `<out>` XOR `--version`** — the four facts, the optional destination and the
-  destination are arguments, so the manifest is the whole description of the
+- **argparse, and `<out>` XOR `--version`** — the four facts and the optional destination are
+  arguments, so the manifest is the whole description of the
   subject. Giving both `<out>` and `--version`, or neither, is one refusal with
   a `next:` line and exit 2.
 - **`--project` checked before anything runs; `--entitlements` before a

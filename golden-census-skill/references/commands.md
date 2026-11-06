@@ -29,22 +29,23 @@ Why the file matters:
 ## `--help`, no arguments, and exit codes
 
 - `--help` stands wherever a flag may stand, before any `--`. It prints the help and exits 0. Nothing else on the command line runs. `golden-census --selfcheck --help` prints the help and runs no self-check.
-- `golden-census` with no arguments prints the usage block and exits 2.
+- `golden-census` with no arguments prints the whole `--help` text, which opens with the usage block, and exits 2.
 - The exit codes are in `SKILL.md`, under "Reading the verdict".
-- The parser's own usage errors print `golden-census: error: …`, or `golden-census <command>: error: …` for a subcommand's own flags, at exit 2. They carry no `REFUSED:` line and no `next:` line.
+- A command line the parser cannot read is a `REFUSED:` sentence on standard output at exit 2, with a `next:` line that points at `--help`. Standard error stays empty.
 
 ## Rules every flag follows
 
 1. **Give a flag once.** A flag given twice on the same side of the subcommand is refused before anything runs. It is never read as its last value. The refusal names the flag, how many times it was given and every value.
-2. **The parser speaks first.** Its own refusals name only what the parser names. A required flag you left out, or a flag the command does not have, is the refusal you get. A flag you also gave twice is not named until that is fixed. For example:
+2. **The parser speaks first.** A command line the parser cannot read is one `REFUSED:` sentence: the command's name, then `could not read its command line:`, then argparse's own words. Its `next:` line points at `--help`. A required flag you left out, a flag the command does not have, a flag without its value and a subcommand it does not know are the refusals you get. If you also gave a flag twice, the refusal for it comes only after you fix the parser's error. For example:
 
    ```
-   golden-census compare: error: the following arguments are required: --manifest
+   REFUSED: golden-census compare could not read its command line: the following arguments are required: --manifest.
+     next: Run golden-census compare --help. It lists every flag and marks the required ones.
    ```
 
 3. **Only the flags marked repeatable repeat.** They are `--input`, `--only` and `compare --command`.
 4. **An empty path is refused.** An empty or white-space value, as an unset or blank shell variable gives one, is never read as the flag left out or as the current directory. The flags are `--manifest`, `--out`, `--golden`, `--against`, `--allow-diff`, `--mutants`, every `compare --command` element and `probe --census`, and the directory `init` takes. `probe --writes-env` is refused an empty or white-space name the same way.
-5. **Paths are checked before the controls run.** A refused path costs one `REFUSED:` sentence at exit 2 and no run of the subject. Fix the path and run again. After the temp root (`references/machine.md`), the order of the checks is: `--manifest`, then `--golden`, `--against` and `--allow-diff`, then the `--input` names, then `--out` and whether a capture can land there, then `--mutants`. `probe --census` and the directory `init` takes are checked too. Those two commands run no controls.
+5. **Paths are checked before the controls run.** A refused path costs one `REFUSED:` sentence at exit 2 and no run of the subject. Fix the path and run again. After the temp root (`references/machine.md`), the order of the checks is: `--manifest`, then `--golden`, `--against` and `--allow-diff`, then the `--input` names, then `--out` and whether a capture can land there, then `--mutants`. `probe --census` and the directory `init` takes are checked too. `probe` and `init` run no controls.
 6. **Some paths are read again.** `--golden`, `--against` and `--allow-diff` are read again where the command uses them. A verdict is of the golden and the table as they stand once the census's controls have run.
 
 ## The flag table
@@ -80,7 +81,7 @@ One row per flag and command. A flag that takes a value shows its placeholder: `
 
 ### `--manifest`
 
-- `probe` and `init` take no manifest. They reject the flag with the parser's own error, at exit 2, with no `REFUSED:` line and no `next:` line:
+- `probe` and `init` take no manifest. They reject the flag with the parser's own error, at exit 2, with no `REFUSED:` line and no `next:` line (`init` lists the flag's value after it; `probe` takes the value as part of the candidate):
 
   ```
   golden-census: error: unrecognized arguments: --manifest
@@ -94,7 +95,7 @@ One row per flag and command. A flag that takes a value shows its placeholder: `
 
 - A path that does not exist is created. An existing empty directory is used as it is; the header says `[empty directory]`.
 - A directory that holds a capture is refused without `--force`.
-- A file golden-census did not write, such as a `.DS_Store`, beside a capture already there, is refused with the file named; with no capture there, the refusal is the one for a directory that is not a capture. Delete the file, or point `--out` at a path that does not exist yet.
+- A file golden-census did not write, such as a `.DS_Store`, beside a capture already there, is refused: without `--force` the refusal says the directory already holds a capture, and under `--force` it names the file; with no capture there, the refusal is the one for a directory that is not a capture. Delete the file, or point `--out` at a path that does not exist yet.
 - A symbolic link is refused, as `--out` itself or anywhere inside a directory that holds a capture, whatever `--force` and `--input` say. The refusal names the link and its target. `--force` replaces the directory whole, and what a link points at is not what you named.
 - golden-census records the capture under the temp root and moves it into place, through a new directory beside `--out`. The directory `--out` sits in must therefore be writable.
 - A capture refused or failed before that move leaves `--out` exactly as it was. If `--out` was absent, it stays absent.
@@ -155,7 +156,7 @@ One row per flag and command. A flag that takes a value shows its placeholder: `
 
 ### `--census` and `--writes-env`
 
-- `probe --census FILE` builds the candidate's environment from that census's pins and passthrough, the built-in census without the flag, and folds the banner through its `path` rows. It applies no fold to what the candidate prints or writes, so a timestamp a `regex` fold would remove is still red at clause 4. A missing file is refused.
+- `probe --census FILE` builds the candidate's environment from that census's pins and passthrough, and folds the banner through its `path` rows. Without the flag, `probe` uses the built-in census. It applies no fold to what the candidate prints or writes, so a timestamp a `regex` fold would remove is still red at clause 4. A missing file is refused.
 - With it, clause 5 of the `probe` block lists that census's variables. A run under the shipped example's census listed `4 variable(s) passed — GOLDEN_CENSUS_CHILD, HOME, PATH, TMPDIR`.
 - Without `--census`, clause 5 lists exactly six names: `COLUMNS, GOLDEN_CENSUS_CHILD, HOME, PATH, SOURCE_DATE_EPOCH, TMPDIR`. A list of five is a bug in golden-census. Report it.
 - `--writes-env OUT_PATH` hands the output path to the candidate as the variable `OUT_PATH`, so the argv holds no `<WRITES>`.

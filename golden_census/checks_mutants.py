@@ -76,7 +76,7 @@ from .run import (
 # -------------------------------------------------- the mutants command (x-aa)
 #
 # A throwaway subject in a git repository, so the `mutants` command can be
-# driven end to end without a consumer: `git clone --local` needs a repository,
+# driven end to end without a consumer: `git clone` needs a repository,
 # and the whole point of the command is the repo-shaped copy. Nothing here is
 # committed anywhere — the box is a temporary directory and goes with it.
 #
@@ -243,8 +243,8 @@ def _mutants_controls(check: CheckRow, skip: SkipRow) -> None:
              "`find`, an expected check that stays silent, a check that fires "
              "on the null mutant, a mutant every check misses)")
     if shutil.which("git") is None:
-        skip(label, "`git` is not on PATH, and every arm needs `git clone "
-                    "--local` to make the repo-shaped copy the command plants "
+        skip(label, "`git` is not on PATH, and every arm needs `git clone` "
+                    "to make the repo-shaped copy the command plants "
                     "in. Nothing was made and nothing is claimed.")
         return
     with _box("golden-census-mutant-arms-") as box:
@@ -315,8 +315,8 @@ def _refused_first_control(check: CheckRow, skip: SkipRow) -> None:
              "census's controls first, while a run that is not refused prints "
              "them above its MUTANTS header")
     if shutil.which("git") is None:
-        skip(label, "`git` is not on PATH, and every arm needs `git clone "
-                    "--local` to make the repo-shaped copy the command plants "
+        skip(label, "`git` is not on PATH, and every arm needs `git clone` "
+                    "to make the repo-shaped copy the command plants "
                     "in. Nothing was made and nothing is claimed.")
         return
     with _box("golden-census-refused-first-") as box:
@@ -1168,8 +1168,8 @@ def _clone_executes_control(check: CheckRow, skip: SkipRow) -> None:
              "checkout is REFUSED before the null mutant, naming the element "
              "and both roots, rather than printing a table of SILENTs")
     if shutil.which("git") is None:
-        skip(label, "`git` is not on PATH, and this arm needs `git clone "
-                    "--local` to make the copy whose code the run has to "
+        skip(label, "`git` is not on PATH, and this arm needs `git clone` "
+                    "to make the copy whose code the run has to "
                     "execute. Nothing was made and nothing is claimed.")
         return
     with _box("golden-census-clone-executes-") as box:
@@ -1232,7 +1232,7 @@ def _escaping_mutant_control(check: CheckRow, skip: SkipRow) -> None:
 
     Two holes in one key. `preflight` asks `os.path.isfile` against the
     SUBJECT ROOT and `plant` then opens the same relative path inside the
-    CLONE, which `git clone --local` built from HEAD — so a file in the
+    CLONE, which `git clone` built from HEAD — so a file in the
     working tree and not in the last commit passed preflight and was a
     `FileNotFoundError` traceback at the plant. And `os.path.join` discards
     the root when the second element is absolute, so a `file` that is
@@ -1258,8 +1258,8 @@ def _escaping_mutant_control(check: CheckRow, skip: SkipRow) -> None:
              "while a mutant naming a committed file inside the root still "
              "reaches its table")
     if shutil.which("git") is None:
-        skip(label, "`git` is not on PATH, and every case needs `git clone "
-                    "--local` to make the repo-shaped copy the command plants "
+        skip(label, "`git` is not on PATH, and every case needs `git clone` "
+                    "to make the repo-shaped copy the command plants "
                     "in. Nothing was made and nothing is claimed.")
         return
     verdicts: dict[str, str] = {}
@@ -1631,8 +1631,8 @@ def _refused_capture_control(check: CheckRow, skip: SkipRow) -> None:
              "the run with the sentence and the next: line that capture "
              "printed, and the lines it quoted above them and nothing more")
     if shutil.which("git") is None:
-        skip(label, "`git` is not on PATH, and this arm needs `git clone "
-                    "--local` to make the copy the comparator captures. Nothing "
+        skip(label, "`git` is not on PATH, and this arm needs `git clone` "
+                    "to make the copy the comparator captures. Nothing "
                     "was made and nothing is claimed.")
         return
     with _box("golden-census-refused-capture-") as box:
@@ -1952,8 +1952,8 @@ def _permitted_movement_control(check: CheckRow, skip: SkipRow) -> None:
              "fires there refuses the run, and a subject that pins nothing "
              "prints no heading and no line")
     if shutil.which("git") is None:
-        skip(label, "`git` is not on PATH, and this arm needs `git clone "
-                    "--local` to make the copy the comparator captures. Nothing "
+        skip(label, "`git` is not on PATH, and this arm needs `git clone` "
+                    "to make the copy the comparator captures. Nothing "
                     "was made and nothing is claimed.")
         return
     with _box("golden-census-permitted-") as box:
@@ -2592,7 +2592,7 @@ def _left_behind_control(check: CheckRow, skip: SkipRow) -> None:
             and "too long" in reason and in_cache == [] and not elsewhere)
     if held and not git:
         skip(label, "`git` is not on PATH, and the three `mutants` runs need "
-                    "`git clone --local` to make the copies they check: they "
+                    "`git clone` to make the copies they check: they "
                     "did not run, and nothing is claimed for them. The rest "
                     f"ran and held: {detail}")
         return

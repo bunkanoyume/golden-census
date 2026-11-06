@@ -1,10 +1,8 @@
 # Known issues and cautions
 
-Everything here was reproduced against the released code by running the tool, on the date given. A **known issue** is a case where the tool gives a wrong result in silence: an `IDENTICAL`, an `[OK]`, an exit 0 or a golden written, with no sentence saying what went wrong. Each is an open defect of the released code and stays here until its fix ships. A **caution** is a situation the tool answers loudly, or one that takes an input nobody makes on purpose; it is handled by not doing it, and the entry says what happens if you do.
+A **known issue** is a case where the tool gives a wrong answer silently: an `IDENTICAL`, an `[OK]`, an exit 0 or a golden written, with no sentence saying what went wrong. Each is an open defect and stays here until its fix ships. A **caution** is a case the tool answers loudly, or an input nobody makes on purpose. You avoid it by not doing it, and the entry says what happens if you do.
 
 Each entry gives the case, what the tool does, and what to do instead.
-
-Verified 2026-10-13; the entries added 2026-10-19 were reproduced that day at `675ebf1`; the entries added 2026-10-26 were reproduced 2026-10-25 at `83df4a9`.
 
 ## Known issues
 
@@ -17,7 +15,7 @@ Verified 2026-10-13; the entries added 2026-10-19 were reproduced that day at `6
 
 - **Under `probe -- sh -c '<program> … > "$1"' _ '<WRITES>'`, a program the shell cannot find still passes.** The shell makes the file, empty, and both runs exit 127 alike, so every clause holds: `5/5 passed`, exit 0. Read clause 3's `actual: exit codes` line; `127` is the shell saying the program was not found. Run the program by hand once before probing it through a shell.
 
-- **Run one golden-census command at a time against a subject, and change nothing under the subject, the golden directory or the temp root while it runs.** A second capture of the same pinned input, started at the same moment, is skipped with "File exists" until the first has cached the clone. A file you edit while a command runs is read in the state it has when the run reaches it. Start the second command after the first finishes. See the manual.
+- **Run one golden-census command at a time against a subject, and change nothing under the subject, the golden directory or the temp root while it runs.** A second capture of the same pinned input, started at the same moment, is skipped with "File exists" until the first has cached the clone. A file you edit while a command runs is read in the state it has when the run reaches it. Start the second command after the first finishes. See the skill's `SKILL.md`, "Run it".
 - **Do not spell `<WRITES>` or `<CLONE>` where it has no value.** The cases are `<WRITES>` in the `args` or `env` of a surface that has no `writes` key, and `<CLONE>` in a `drift` command or in a `counter` of a manifest with no cloned input. The manifest or census check accepts each case. The tool refuses it when it runs, with "has no value in this run", after earlier rows have run. Spell `<WRITES>` only on a surface with `writes`, and `<CLONE>` only in a manifest with a cloned input.
 - **Do not save an `--allow-diff` table with a UTF-8 byte-order mark, or as UTF-16 without one.** The first row, or every row, is then not permitted, and the comparison reports those rows as differing. The only sign is the `unused:` line, which shows the table's row with its stray bytes. A UTF-16 file with its byte-order mark is refused as not UTF-8 text. Save the table as UTF-8 without a byte-order mark.
 - **Do not pin a commit that checks out dirty on your disk.** An example is a commit with two files whose names differ only by case, on a case-insensitive volume. The tool skips the input and says the clone "is not clean". Its advice to delete the clone does not help, because the next clone is dirty again. Pin a commit that checks out clean on your disk.
@@ -32,7 +30,6 @@ Verified 2026-10-13; the entries added 2026-10-19 were reproduced that day at `6
 - **Refusals that name the wrong cause or give advice that does not help.** Each item was reproduced.
   - A `git` that prints a byte that is not UTF-8 ends in a refusal, or an input's SKIP, saying the command "ran and printed a byte no UTF-8 decoder can read". The advice is to make that command print UTF-8, which you cannot do for `git`. Run the `git` command that the message names by hand, and repair that `git`.
   - A pinned input that cannot be cloned in a `mutants` run ends in the same null-mutant refusal, and the refusal says nothing of the clone. Run `capture` and read the `[SKIP]` line of the input.
-  - A refused census control is followed by lines about "the rows above" and "the FAILED control(s)", although no control failed. Read the `REFUSED:` line of the control.
-  - A usage error that the parser answers itself goes to standard error in its own words, at exit 2, with no `REFUSED:` and no `next:` line. An example is `golden-census capture: error: the following arguments are required: --out`. Read that line.
+  - A refused census control is followed by "the rows above are every control that ran" and a `next:` about "each FAILED control above", although no control failed. Read the `REFUSED:` line of the control.
   - A refusal's `ran:` and `about to run:` lines fold the temp root with the census's `work` token, not the work directory. Under a census whose `work` fold is spelled `<WORK>`, `REFUSED: b/s writes <WORK>/out.txt` stands over `ran: … <WORK>/golden-census-hvfaysl3/out.txt`. Both lines name one file. Read the path in the `REFUSED:` line.
   - Under `mutants`, a null-mutant refusal for contraband quotes at most 20 hit lines and gives no count. A subject that prints 22 home paths shows 20 lines. `capture` of the same subject prints `22 hit(s)` on its scan line. Run `capture` to see the count.

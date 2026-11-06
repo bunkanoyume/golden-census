@@ -943,7 +943,7 @@ def build_env(census: Census, roots: Roots,
     because what it says is true of the run rather than of the subject: this
     process was started by golden-census. A subject whose own self-test would
     run the census again reads it and refuses; a subject that ignores it
-    behaves exactly as it did before. `docs/contract.md` names it under what
+    behaves exactly as it did before. `docs/subject-requirements.md` names it under what
     golden-census gives back, as a clause a subject MAY honor.
     """
     env: dict[str, str] = {}
@@ -1116,7 +1116,7 @@ def interpreter_spellings() -> list[tuple[str, str]]:
     Any other link to the same file — a symlink a reader made, a shim — is
     printed as typed, and one whose path begins with a folded spelling and
     goes on past a `.` (`…/python3.12` beside `…/python3`) as `<PYTHON>.12`.
-    `docs/contract.md` discloses that, because a gap nobody wrote down is a
+    `docs/subject-requirements.md` discloses that, because a gap nobody wrote down is a
     gap a reader meets as a surprise.
     """
     spellings = [sys.executable]

@@ -6,9 +6,11 @@ function.
 - `wordstats/tokenize.py` counts the words of a text.
 - `runner.py` is the file `golden-census init <dir> --template python-function`
   writes, with its three holes filled.
-- `manifest.toml`, `census.toml` and `mutants.toml` are the neutral three with
-  their fourteen holes filled. In `mutants.toml` alone, the second
-  `[checks.<name>]` table and the second `[[mutant]]` row are uncommented.
+- `manifest.toml` is the neutral template's with its holes filled. `census.toml`
+  is too, less the neutral's commented `TZ`, `PYTHONHASHSEED`, `clone` and
+  `fixed-width-dir` rows, which this subject has no use for. `mutants.toml`
+  adds a second check, `label`, and a second `[[mutant]]` row that only that
+  check catches; the neutral's commented `smoke` check is gone.
   That is why there are two of each.
 - `golden/` is committed.
 
@@ -40,9 +42,9 @@ block of controls.
 
 Commands 4, 5, 6 and 8 run THIS census's own controls first. Each prints their
 tally before its own log: one line, plus any disclosed `[SKIP]`. Here the
-tally is `3/3 census controls passed`: the pin and the two folds. Each then
-prints, under its header, `census note: no \`path\` fold names clone,
-fixed-width-dir. …`: this
+tally is `3/3 census controls passed`: the pin and the two folds. Commands 4,
+5 and 6 then print, under their header, `census note: no \`path\` fold names
+clone, fixed-width-dir. …` (command 8 prints its table and no note): this
 census folds no clone directory and no fixed-width temp directory, because
 nothing here pins an input or prints a temp path. A capture that leaked either
 would be refused, and the refusal names the row to add.
@@ -55,7 +57,7 @@ Commands 1, 2, 7 and 9 run nothing first.
 - `--version` starts nothing.
 - `compare --against` reads two recorded directories and starts no subject.
 - `probe` and `init` are both asked before a census exists. Command 2's `5/5
-  passed` is the five clauses of `probe`'s own contract and nothing else.
+  passed` is the five clauses of the subject requirements and nothing else.
 
 Command 9 prints two hole lines. The first counts the neutral three's fourteen
 holes. The second counts the template's holes, and row 9 quotes it.
@@ -67,7 +69,7 @@ numbers.
 
 | # | command | the line |
 |---|---|---|
-| 1 | `--version` | `golden-census 1.0.0` |
+| 1 | `--version` | `golden-census 1.0.1` |
 | 2 | `probe` | `  5/5 passed` |
 | 3 | `census` | `  3/3 passed`, then `census <REPO>/examples/python-function/census.toml` |
 | 4 | `capture` | `  capture complete` |
@@ -88,7 +90,7 @@ Command 7 is the one an agent hands back, because it needs no working subject.
 words ranked by `(-count, word)`. Two fixtures reach one JSON document under
 two keys, so a diff names the fixture as well as the key. Nothing here reads
 the clock, the filesystem or a random source. `capture --twice` checks that,
-and clause 2 of `docs/contract.md` is what it checks it against.
+and clause 2 of `docs/subject-requirements.md` is what it checks it against.
 
 ## The two mutants, and why there are two
 
@@ -105,7 +107,7 @@ checks catch DIFFERENT mutants. That is the whole point of the table.
 ## Traps
 
 - **`root` is `../..`, the repository top, not this directory.** `mutants`
-  copies the subject with `git clone --local`. That command refuses a
+  copies the subject with `git clone`. That command refuses a
   subdirectory of a repository. A nested `.git` here would make these files
   untrackable. So the subject is the checkout. A relative path in the manifest
   or the mutants file is relative to the repository top. That covers each
@@ -113,7 +115,7 @@ checks catch DIFFERENT mutants. That is the whole point of the table.
   and it is the reason `<HERE>` exists. The runner lives beside this manifest,
   not at the repository top. So `command` spells `<HERE>/runner.py`, this
   file's own directory. It says where the runner is, not where the run starts.
-- **`mutants` reads the COMMITTED example.** `git clone --local` copies HEAD,
+- **`mutants` reads the COMMITTED example.** `git clone` copies HEAD,
   not the working tree. An uncommitted edit that moves the output leaves the
   null mutant SILENT, and `mutants` says nothing about the edit. Commit first.
 - **The golden is committed, and re-baselining is a decision.** The command

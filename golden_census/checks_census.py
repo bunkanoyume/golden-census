@@ -738,7 +738,7 @@ def _here_golden_half(box: str, skip: SkipRow) -> tuple[str, str]:
     path, why = _mutant_box(box)
     if path is None:
         skip(_HERE_HALF_LABEL,
-             f"{why.rstrip(': ')}; the half needs `git clone --local` to make "
+             f"{why.rstrip(': ')}; the half needs `git clone` to make "
              "the repo-shaped copy a mutant is planted in, and that git did "
              "not make the repository. The census half and the manifest "
              "control still ran; nothing is claimed for this one.")
@@ -798,7 +798,7 @@ def _here_control(check: CheckRow, skip: SkipRow) -> None:
         here_run, bare_run = "", ""
         if shutil.which("git") is None:
             skip(_HERE_HALF_LABEL,
-                 "`git` is not on PATH, and the half needs `git clone --local` "
+                 "`git` is not on PATH, and the half needs `git clone` "
                  "to make the repo-shaped copy a mutant is planted in. The "
                  "census half and the manifest control still ran; nothing is "
                  "claimed for this one.")
@@ -2740,7 +2740,7 @@ def _short_name_fold_control(check: CheckRow, skip: SkipRow) -> None:
     label = ("ffff  the interpreter folds by every spelling of the SAME file: "
              "a `probe` banner typed with the short name PATH resolves — a "
              "third string, neither `sys.executable` nor its realpath — reads "
-             "`<PYTHON>`. The control is the disclosed gap `docs/contract.md` "
+             "`<PYTHON>`. The control is the disclosed gap `docs/subject-requirements.md` "
              "names: a fourth link to the same interpreter, a symlink this arm "
              "plants, is printed AS TYPED, because a fold is of the spellings "
              "this machine offers and not of every path that could ever point "
@@ -6567,7 +6567,8 @@ def _json_shapes_control(check: CheckRow) -> None:
     """(pppppp) the json-fields control reports a verdict over a sample that
     holds an array, is one, or has a key holding a `.` — never a `KeyError`.
 
-    The control's third arm changes one scalar outside the folded fields and
+    The control's third arm changes one string or integer outside the folded
+    fields and
     expects the change REPORTED. A leaf found as a dotted string and set by
     splitting that string on `.` again indexes a dict with `"items[0]"`, and
     the control raises, turning the row into a `[FAIL]  !` that says nothing

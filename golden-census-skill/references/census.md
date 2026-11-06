@@ -2,7 +2,7 @@
 
 Open this file when you write a census row, or when a capture will not reproduce. The census lists every input to the subject's output that is not the subject's own code, and says what to do with each: pin it, fold it, state it or require it.
 
-The whole rule for every key is in the format document, `docs/census-format.md` under the `docs` directory `golden-census --help` names. This file carries the rows to copy. The strict-key rule of `references/manifest.md` holds here too: a key golden-census does not read is refused.
+The whole rule for every key is in the format document, `docs/census-format.md`. `golden-census --help` names the `docs` directory. This file carries the rows to copy. The strict-key rule of `references/manifest.md` holds here too: a key golden-census does not read is refused.
 
 ## The rule
 
@@ -10,8 +10,8 @@ The whole rule for every key is in the format document, `docs/census-format.md` 
 - Every pin and every `regex` or `json-fields` fold carries a `control`. A `path` fold's control is built in. A row without a control is refused, because a pin nobody can show matters is a claim, not a measurement.
 - Add a row for evidence, not for possibility. A row defends against an input seen to move a golden.
 - Every subject subprocess runs under an environment built from nothing: the pinned variables at their pinned values, the `passthrough` list, the surface's own `env`, and golden-census's child marker. An unlisted variable cannot reach the subject.
-- The contraband scan finds paths only. A passed-through secret, user name or host name that reaches a golden is the census author's to keep out of the subject's output; `probe` scans for passed-through values and a capture does not.
-- Keep the four `path` folds that `init` wrote: `root`, `work`, `clone` and `fixed-width-dir`. The block below shows all four, as `init` writes them. A census missing any of `work`, `clone` or `fixed-width-dir` prints ``note: no `path` fold names work, clone, fixed-width-dir``, because the contraband scan refuses a capture that leaks one of those directories.
+- The contraband scan finds paths only. A passed-through secret, user name or host name that reaches a golden is the census author's to keep out of the subject's output. Neither `probe` nor a capture scans the output for a passed-through value. `probe`'s clause 5 looks for the values of variables that were NOT passed, which is the other leak.
+- Keep the two `path` folds `init` wrote live, `root` and `work`, and uncomment `clone` or `fixed-width-dir` the day a refusal names it. The block below shows all four as `init` writes them, two live and two commented. A census missing any of the four prints a `note:` naming the missing ones, such as ``note: no `path` fold names clone, fixed-width-dir``, because the contraband scan refuses a capture that leaks one of those directories.
 
 ## The rows
 
@@ -145,14 +145,14 @@ finding     = "a `git archive` copy has no repository, so every row that stamps 
 | `state` | Prints the input's value in the capture log. Never a golden. | no |
 | `precondition` | A fact that must hold before a capture or compare runs. A failure is a refusal, never a FAIL. | no |
 
-A `state` row records its `commands` and `variables` in the capture log. The `census state` block prints only the first line of each command, so pipe a multi-line answer into one line.
+A `state` row records its `commands` and `variables` in the capture log. The `census state` block prints only the first line of each command, so pipe a multi-line answer into one line. A `state` command runs under golden-census's own environment, as a `command` precondition does ("Preconditions" below), not the built one. It runs in the subject's root, so a relative path such as `bin/mytool` resolves there.
 
 ## `vary`: the control of a pin
 
 - It names one of the manifest's own `<input>/<surface>` rows whose surface is a `run`. A key that names any other row is refused when the manifest is read.
-- It runs that row three times: twice under the pin, once under `value`. Each run is alone, in a new place that holds only what preparation put there: the manifest's `[files]` and the setup steps the row `needs`, and no other row's.
+- It runs that row three times: twice under the pin, once under `value`. Each run is alone, in a new place that holds only what is prepared for it: the manifest's `[files]` and the setup steps the row `needs`, and no other row's.
 - A row that reads what another row's setup step made must name that step in its own `needs`.
-- A setup step the row needs runs three times for every `vary` pin, in front of `capture`, `compare`, `mutants` and `census`. Name a row that needs none where one shows the pin.
+- A setup step the row needs, and the row itself, run three times for every `vary` pin, in front of `capture`, `compare`, `mutants` and `census`. If two rows would both show the pin, name the one that runs fastest and needs the least setup.
 - The control compares the exit code and what a capture records of the row's stdout, stderr and written file, after the census's folds, under the surface's own `env`.
 - The two runs under the pin must agree, and the run under `value` must differ. A pin whose three runs agree is `UNPROVEN`. Two runs under the pin that differ read `actual: the two runs under the pin differ, and …`. `references/verdicts.md` quotes both rows and says what to do.
 - The subject's own tree is the same tree in all three runs, and so is the kept clone of a pinned input. A row that keeps state in either can differ between runs.
@@ -163,7 +163,7 @@ A `state` row records its `commands` and `variables` in the capture log. The `ce
 - `command` runs twice without the pin, `wait` seconds apart, and the outputs must differ. It runs twice with the pin, and the outputs must be identical.
 - `output` is absent, meaning standard output, or a string naming a file under `<WORK>`. Write it relative to `<WORK>` or opening with `<WORK>/`.
 - Any other spelling is refused when the census is read: an empty string, an absolute path, another placeholder, a path that climbs out with `..`, and a value that is not a string.
-- A file that a link takes out of `<WORK>`, before a run or after it, refuses the command.
+- If a link takes the file out of `<WORK>`, before a run or after it, the command is refused.
 - The command runs in `<WORK>`. A program named by a relative path with a `/` is refused when the census is read. Spell it `<HERE>/…` or `<ROOT>/…`.
 - A command not on `PATH` is a disclosed SKIP of the control. So is a command named by an absolute path, or by one that opens with a placeholder, that is not there.
 
@@ -192,7 +192,8 @@ control     = { shape = "vary", surface = "report/summary", value = "1" }   # a 
 - `source` is one of `root`, `work`, `clone` and `fixed-width-dir`. Those are the four directories golden-census knows. `fixed-width-dir` is the directory of exactly N characters that golden-census makes under the temp root and pins the subject's `TMPDIR` to; the census spells the pin `<FIXED-WIDTH-DIR:N>`, and its control is built in.
 - golden-census replaces the directory longest-first, in both its given and its `realpath` form.
 - It replaces the directory only where its name ends. `<root>/x` and `<root>.bak` fold. `<root>-old`, `<root>2` and `<root>_x` are other directories, which the contraband scan then refuses.
-- A `path` row's control folds one sample line over the directory and checks that the placeholder appears and a path golden-census did not make survives. The controls' work directory holds no clone and no fixed-width directory, so for those two sources the control makes a stand-in directory under it and folds that: every `path` row gets a verdict. The template keeps those two rows commented; a census without them prints the `census note:` line `SKILL.md` step 4 quotes.
+- A subject that cuts a temp path short prints half a directory name, and no `path` fold recognizes half a name. Fold that sentence with a `regex` row scoped to the rows that print it.
+- A `path` row's control folds one sample line over the directory and checks that the placeholder appears and a path golden-census did not make survives. The controls' work directory holds no clone and no fixed-width directory, so for those two sources the control makes a stand-in directory under it and folds that: every `path` row gets a verdict. The template keeps those two rows commented; a census without them prints the `census note:` line `first-run.md` step 4 quotes.
 - A path fold cannot be narrowed by `scope`.
 
 ### `regex`
@@ -200,9 +201,11 @@ control     = { shape = "vary", surface = "report/summary", value = "1" }   # a 
 - The pattern must contain a group named `volatile`. Only that group is replaced, so the rest of the line stays a byte comparison. Never fold the whole line.
 - Multi-line mode is on. A subject that prints `\r\n` is recorded with it, and `$` does not match before a `\r`. A pattern anchored on `$` spells `\r?$`.
 - A pattern that contains a single quote goes in a TOML multi-line literal string (`'''…'''`).
+- A `sample` or `moved` that holds a line break is a TOML basic string, `"…\n…"`. In a literal string, `'…'`, `\n` is two characters, a backslash and an `n`.
 - `scope` names the rows the fold applies to. The default is every row, spelled `scope = "*"` or a list that holds only `"*"`. A list that mixes `"*"` with row names is refused.
 - Scope a fold to the rows that need it. A fold applied everywhere would swallow a future timing on any surface without anyone seeing it.
 - A `regex` fold sees the text as the subject wrote it, before the built-in `path` folds. For a written `.json` file, that text is the file's text after its `json-fields` folds.
+- A `regex` fold never reads `surfaces.json`, the record of each row's argv. Only the `path` folds reach it, and they name the four directories. A machine path in the argv is the manifest's to fix: `references/first-run.md`, step 1, says how.
 - A fold whose `volatile` group takes part of the subject root and leaves the rest is refused, when the census is read or while a capture runs. Narrow the group to take all of the root or none of it, or scope the fold to rows that do not print the root.
 - The control has three arms: `sample` and `moved` normalize identical, the same pair unnormalized differs, and one changed byte outside the volatile group is still reported. The row's own `pattern`, alone, must also change `sample` and `moved`; a second fold that folds the same token does not count for it. A fold with a `scope` list has a fourth arm: the moved token is still reported on a surface outside the scope.
 
@@ -211,7 +214,7 @@ control     = { shape = "vary", surface = "report/summary", value = "1" }   # a 
 - It applies to written `.json` surfaces. It parses the document, replaces every named field under every named path with the placeholder, and re-serializes with exactly the stated `serialization`. A path or field that is absent is skipped.
 - `serialization` takes `indent` (an integer) and `ensure_ascii` (a boolean) and no other key.
 - Before it replaces anything, golden-census asserts the round trip. When the round trip fails, the capture is refused: the subject's JSON writer no longer matches the stated `serialization`.
-- `sample` and `moved` are files under `[fixtures] dir`. They must read as UTF-8 text. A key that does not resolve is refused when the census is read, never skipped when the controls run.
+- `sample` and `moved` are files under `[fixtures] dir`. They must read as UTF-8 text. The sample document needs at least one string or integer that is the value of a key outside the folded fields; a boolean, a float, null, or a value held directly in an array does not count. Without one, the control's one-field arm is a disclosed SKIP. A key that does not resolve is refused when the census is read, never skipped when the controls run.
 
 ## Preconditions
 
@@ -242,9 +245,9 @@ finding     = "the subject answers from this file; a different one moves every r
 - A row or a setup step leaves nothing that `git status` lists, in the subject's tree or in a pinned tree. It writes under `<WORK>`, or where the repository's own `.gitignore` or `.git/info/exclude` ignores the file.
 - Python's `__pycache__/` is the usual offender. A command whose rows leave something git lists in a pinned tree is refused at exit 2. The refusal names every input that entered the clone in the order they entered, the clone, and what git lists. A capture's `--out` is left as it was.
 - The capture whose row wrote the file is the one refused. A later capture skips that input until the directory is deleted.
-- A `[[setup]]` step or the `[subject] version` command runs before the clone is entered. One that writes into a clone kept from an earlier run is that input's `[SKIP]` in the same run, before any row.
+- A `[[setup]]` step or the `[subject] version` command runs before the clone is entered. If one writes into a clone kept from an earlier run, that input is a `[SKIP]` in the same run, before any row runs.
 - A kept clone's `.git/info/exclude` goes with the clone when the clone is deleted.
 
 ## `GOLDEN_CENSUS_CHILD`
 
-golden-census adds `GOLDEN_CENSUS_CHILD=1` to every subject environment, after the pins and the passthrough. A census pin of it, and a surface's `env` that sets it, are each refused at load, naming the file and the row or surface. The variable says the one thing a subject cannot find out for itself: golden-census started this process. A subject whose own self-test would run the census again reads it and refuses. A subject that ignores it behaves as before.
+golden-census adds `GOLDEN_CENSUS_CHILD=1` to every subject environment, after the pins and the passthrough. A census pin of it, and a surface's `env` that sets it, are each refused at load, naming the file and the row or surface. The variable says the one thing a subject cannot find out for itself: golden-census started this process. A subject whose own self-test would start golden-census again reads it and refuses. A subject that ignores it behaves as before.

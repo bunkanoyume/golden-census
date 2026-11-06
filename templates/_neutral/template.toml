@@ -43,8 +43,8 @@ name        = "ROOT"
 description = "the subject's checkout directory, relative to the manifest: the cwd of every run and the directory `<ROOT>` expands to"
 
 [[hole]]
-name        = "COMMAND"
-description = "the argv prefix of every run, after `<PYTHON>` — the entry point that takes the arguments below (drop the `<PYTHON>` element for a compiled subject)"
+name        = "PROGRAM_RUN_COMMAND"
+description = "the words that run the program, one quoted string each, in place of the quoted hole; an input's and a surface's arguments follow them. `\"bin/mytool\"` for a compiled tool or a launcher script; `\"<PYTHON>\", \"<HERE>/runner.py\"` for a Python script, where `<PYTHON>` is the interpreter running golden-census"
 
 [[hole]]
 name        = "INPUT_NAME"
@@ -68,7 +68,7 @@ description = "the extension of the file the surface writes (`json`, `txt`, `dot
 
 [[hole]]
 name        = "VERSION_COMMANDS"
-description = "the words of one tool's version command, one quoted string each, in place of the quoted hole: `\"<PYTHON>\", \"--version\"`. One inner list per further tool; the state block prints the first line of each"
+description = "the words of the SUBJECT'S own version command, one quoted string each, in place of the quoted hole: `\"bin/mytool\", \"--version\"`. One inner list per further tool it depends on; the state block prints the first line of each"
 
 [[hole]]
 name        = "GOLDEN"

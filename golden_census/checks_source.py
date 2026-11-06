@@ -31,6 +31,7 @@ from .checks_base import (
     _ast_owners,
     _call_sites,
     _named,
+    _site_key,
     _owner_at,
     _walk_for_plant,
     _walk_package,
@@ -153,7 +154,7 @@ def _clock_sites(source: str, name: str) -> list[str]:
         if kept:
             found.append(f"{name}:{line} in {_owner_at(owners, line)}() "
                          f"— {kept}")
-    return sorted(found)
+    return sorted(found, key=_site_key)
 
 
 #: What the planted copy of `capture.py` carries: one call that passes a

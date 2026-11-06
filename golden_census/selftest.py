@@ -54,9 +54,9 @@ from .core import (
 )
 from .docs import (
     _run as docs_run,
-    MEMBER_JOIN,
     PRICED,
     Members,
+    PROCEDURE_HEADING,
     command_surface,
     measure,
     exit_sentence,
@@ -325,37 +325,51 @@ def _version_control(halves: list[tuple[str, str]]
 
 def _procedure_row(group: Report, human: Members,
                    agent: Members | None) -> None:
-    """The adopter's procedure, stated once and told twice.
+    """The first-run procedure, stated once, in one member of the two sets.
 
-    Both halves or neither: a count and a set of names compared against
-    nothing is not a check, so an install carrying no skill files a disclosed
-    SKIP rather than a row about the README alone. Each set tells it in ONE
-    member, and a second member carrying it is a problem.
+    The procedure lives in the skill (`references/first-run.md`), so an
+    install carrying no skill files a disclosed SKIP rather than a row about
+    the human set alone. Both sets are read as one text: the member carrying
+    `PROCEDURE_HEADING` is the home, a second carrier anywhere is a problem,
+    and the home's steps are each named by a bold phrase.
     """
-    label = ("the adopter's procedure is ONE procedure: the human set and the "
-             "agent set state the same number of steps, numbered the same, "
-             "each named by the same leading bold phrase — the human reading "
-             "and the agent reading are the same walk, and a step in one and "
-             "not the other is a step somebody skips")
+    label = ("the first-run procedure has ONE home: exactly one member of the "
+             "human set and the agent set together carries its heading, and "
+             "under it every numbered step opens with the bold phrase that "
+             "names it — a step with no name is a step somebody skips")
     if agent is None:
         group.skip(label, Layout.detect().absent(f"{SKILL_DIR}/SKILL.md")
-                          + " There is one procedure to read and nothing to "
-                          "read it against; nothing is claimed.")
+                          + " The procedure lives in the skill; nothing is "
+                          "claimed.")
         return
-    halves, problems = procedure_halves([("the human set", human),
-                                         ("the agent set", agent)])
+    halves, problems = procedure_halves([("the two sets", human + agent)])
     problems = procedure_problems(halves) + problems
     counts = [(name, len(procedure_steps(text))) for name, text in halves]
     group.check(
         label, not problems,
         ACTUAL + ", ".join(f"{name} {count} step(s)"
                                for name, count in counts)
-        + ("; the same steps, the same names" if not problems
+        + ("; every step named" if not problems
            else " | " + " | ".join(problems)),
-        next="Both documents' `Plugging a project in, in order` sections are "
-             "one procedure written twice: the step's NAME is the bold phrase "
-             "it opens with, and the two have to be the same word for word. "
-             "The prose under it is each audience's own.")
+        next=f"`{PROCEDURE_HEADING}` heads the procedure in "
+             "`references/first-run.md` and nowhere else: each step's NAME is "
+             "the bold phrase it opens with.")
+
+
+def _docs(layout: Layout) -> Members:
+    """Every `docs/*.md` the layout carries, as `(path, text)`, for the link
+    row: the document list that links the shipped READMEs is under `docs/`
+    and is not a member of the human set."""
+    base = os.path.join(layout.data, "docs")
+    if not os.path.isdir(base):
+        return []
+    members: Members = []
+    for name in sorted(os.listdir(base)):
+        if name.endswith(".md"):
+            text = read_text(os.path.join(base, name))
+            if text is not None:
+                members.append((f"docs/{name}", text))
+    return members
 
 
 def _docs_group(out: Any) -> int:
@@ -388,14 +402,18 @@ def _docs_group(out: Any) -> int:
         layout = Layout.detect()
         present, missing = shipped_readmes(layout.data)
         if present:
-            links = link_problems(
-                MEMBER_JOIN.join(text for _path, text in human),
-                "the human set", present)
+            linked: set[str] = set(present)
+            for path, text in human + _docs(layout):
+                linked -= {one for one in present
+                           if not link_problems(text, path, [one],
+                                                base=os.path.dirname(path))}
+            links = [f"the human set and docs/ link no {path}"
+                     for path in present if path in linked]
             group.check(
                 "every `templates/*/README.md` and `examples/*/README.md` "
-                "beside the package is a link target in the human set, and "
-                "the directories with no README are named here rather than "
-                "failed",
+                "beside the package is a link target in the human set or in "
+                "a document under docs/, and the directories with no README "
+                "are named here rather than failed",
                 not links,
                 f"{ACTUAL}{len(present)} README(s) — {', '.join(present)}; "
                 f"without a README: {', '.join(missing) or 'none'}; "

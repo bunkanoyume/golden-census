@@ -1,6 +1,6 @@
 # Templates
 
-Open this file at step 2 of "Plugging a project in, in order", or when you choose a template. `golden-census init <DIR> --template <NAME>` writes the neutral manifest, census and mutants file, and then a template's own runner on top of them. `golden-census init --list` prints the names and a summary of each.
+Open this file at step 2 of `references/first-run.md`, or when you choose a template. `golden-census init <DIR> --template <NAME>` writes the neutral manifest, census and mutants file, and then a template's own runner on top of them. `golden-census init --list` prints the names and a summary of each.
 
 ## Which template
 
@@ -26,7 +26,7 @@ Open this file at step 2 of "Plugging a project in, in order", or when you choos
 5. Write that text to the output path, print nothing, and exit 0.
 6. On any failure, print one line to standard error and exit non-zero: the error's name and first line, never a stack trace and never a path of the machine.
 
-The `python-function` runner is this shape; read it as the model. Then `probe` the runner (step 3) before the manifest names it.
+The `python-function` runner is this shape; read it as the model. Then `probe` the runner (`first-run.md` step 3) before the manifest names it.
 
 ## What `init` prints
 
@@ -48,15 +48,15 @@ INIT  python-function  (1 file(s)) — a Python function: a runner script import
 
 ## The `probe` line of each template's runner, and what it prints
 
-`<interpreter>` is the path of the Python running golden-census (step 3). Fill the holes first.
+`<interpreter>` is the path of the Python running golden-census (`first-run.md` step 3). Fill the holes first.
 
 - `python-function`, from the manifest's directory: `golden-census probe -- <interpreter> runner.py '<WRITES>'`. It prints `5/5 passed`.
-- `swift-package`, from the directory holding `Package.swift`: `golden-census probe --writes-env GOLDEN_CENSUS_OUT -- swift test -q --filter GoldenCensusRunner`. The runner reads its output path from `GOLDEN_CENSUS_OUT`, which the manifest's surface sets in `env`. Clause 4 is red on `swift test`'s timestamps and durations, even with `--census`: `4/5 passed`, exit 1. `references/commands.md`, `--census`, says why that red is expected. The fix is the `regex` fold in the template's README, section 3, and step 5 (`capture --twice`) is what proves it, not the probe.
-- `swift-xcodebuild`, from the project's root: `golden-census probe -- <interpreter> golden-census/wrapper.py --project <project> --scheme <scheme> --test <test id> --entitlements <entitlements> . '<WRITES>'`, the wrapper's arguments being the manifest's `command` with `.` where it spells `<ROOT>`. It prints `5/5 passed`. The wrapper prints nothing on success.
+- `swift-package`, from the directory holding `Package.swift`: `golden-census probe --writes-env GOLDEN_CENSUS_OUT -- swift test -q --filter GoldenCensusRunner`. The runner reads its output path from `GOLDEN_CENSUS_OUT`, which the manifest's surface sets in `env`. Clause 4 is red on `swift test`'s timestamps and durations, even with `--census`: `4/5 passed`, exit 1. `references/commands.md`, `--census`, says why that red is expected. The fix is the `regex` fold in the template's README, section 3, and `first-run.md` step 5 (`capture --twice`) is what proves it, not the probe.
+- `swift-xcodebuild`, from the project's root: `golden-census probe -- <interpreter> golden-census/wrapper.py --project <project> --scheme <scheme> --test <test id> --entitlements <entitlements> . '<WRITES>'`. The wrapper's arguments are the manifest's `command`, with `.` where the manifest spells `<ROOT>`. It prints `5/5 passed`. The wrapper prints nothing on success.
 
 ## Where the template READMEs are
 
-Each template's README is its pattern document: what the runner freezes, every hole, the manifest lines the template implies, and its traps. Read it at step 2.
+Each template's README is its pattern document: what the runner freezes, every hole, the manifest lines the template implies, and its traps. Read it at `first-run.md` step 2.
 
 1. **In a checkout:** `templates/<NAME>/README.md`, beside the `golden_census` package directory.
 2. **In an install:** `<NAME>/README.md` under the `templates` directory `golden-census --help` names.

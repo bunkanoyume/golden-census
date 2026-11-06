@@ -1,6 +1,6 @@
-"""`golden-census probe` — the five clauses of `docs/contract.md`, executed.
+"""`golden-census probe` — the five clauses of `docs/subject-requirements.md`, executed.
 
-The contract says what a command must do to plug in. This runs a candidate
+The subject requirements say what a command must do to plug in. This runs a candidate
 twice and reports each clause one row, so the answer to "will this command
 work as a subject" is a measurement rather than a reading of the page. It
 needs no manifest and no census: a `probe` happens BEFORE either exists,
@@ -32,6 +32,7 @@ from .core import (
     DIFFERENCE,
     Layout,
     Pending,
+    SKILL_DIR,
     Refusal,
     Report,
     Roots,
@@ -52,7 +53,7 @@ WRITES = "<WRITES>"
 #: command's output. Short values coincide with ordinary output — `xterm`,
 #: `1`, `en_US`, a two-letter language code — and a canary that reported
 #: every one of them would be a row nobody could read. Stated here, in the
-#: clause-5 row, and in `docs/contract.md`, because a threshold that is only
+#: clause-5 row, and in `docs/subject-requirements.md`, because a threshold that is only
 #: in the code is a rule the reader cannot check the verdict against.
 CANARY_MIN = 8
 
@@ -398,7 +399,7 @@ def _clause_4(report: Report, runs: tuple[Run, Run], roots: Roots,
               tokens: frozenset[str]) -> None:
     """Two questions, one clause: did the STREAMS move between the runs, and
     does anything the run produced — either stream or the file — carry a
-    machine fact? The contract states both under clause 4, so they are
+    machine fact? The requirements state both under clause 4, so they are
     reported as one row and the detail says which half broke. `tokens` are
     the ones `Handed.fold` folded the runs with (`Handed.tokens`)."""
     problems: list[str] = []
@@ -434,7 +435,9 @@ def _clause_4(report: Report, runs: tuple[Run, Run], roots: Roots,
              "`regex` fold is not one here, because `probe` applies no census "
              "row. The probe folds its OWN paths (<WRITES>, <WORK>, "
              "<TMPDIR>) before looking, so every path named above is one the "
-             "command found for itself.")
+             "command found for itself. A path that is an input you handed the "
+             "command is the exception: the manifest spells it through <CLONE> "
+             "or <WORK>, the capture folds it, and `capture --twice` is the proof.")
 
 
 def _handed(value: str, given: tuple[str, ...]) -> bool:
@@ -497,7 +500,7 @@ def _clause_5(report: Report, runs: tuple[Run, Run], env: dict[str, str],
 
 def probe(command: list[str], out: Any, census: Census | None = None,
           writes_env: str | None = None, *, cwd: str | None = None) -> int:
-    """Run `command` twice under the contract and report its five clauses.
+    """Run `command` twice against the subject requirements and report the five clauses.
 
     0 every clause passed, 1 a clause FAILED, 2 REFUSED. The environment is
     `build_env(census or Census.builtin(), roots)` — ONE dictionary, built by
@@ -539,7 +542,7 @@ def probe(command: list[str], out: Any, census: Census | None = None,
         raise Refusal(
             f"the probed command names no output path: no argument contains "
             f"{WRITES} and no --writes-env was given. Clause 1 of the "
-            "contract is that golden-census chooses the path and the command "
+            "subject requirements is that golden-census chooses the path and the command "
             "writes there, so a command with nowhere to write cannot be "
             "probed at all.",
             next="Put <WRITES> where the command's output path goes (quote "
@@ -582,8 +585,12 @@ def probe(command: list[str], out: Any, census: Census | None = None,
         _clause_4(report, runs, roots, handed.tokens())
         _clause_5(report, runs, env, writes_env, handed.strings())
         failed = report.finish()
-        # The contract by its full path under this layout's `docs`, as a
-        # refusal names a format document: a reader opens it from anywhere.
-        contract = os.path.join(Layout.detect().data, "docs", "contract.md")
-        out.write(f"\n  Clause numbers are those of {contract}.\n")
+        # The skill's reading of every clause row, by its full path under this
+        # layout: a reader opens it from anywhere, and the probe's output is
+        # never part of a golden. A path the tool prints is a path into the
+        # skill (CONTRIBUTING, "The documents", rule 3).
+        rows = os.path.join(Layout.detect().data, SKILL_DIR, "references",
+                            "verdicts.md")
+        out.write(f"\n  Each clause row is explained in {rows}, "
+                  "\"The `probe` block\".\n")
         return EXIT_MOVED if failed else EXIT_OK

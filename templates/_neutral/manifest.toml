@@ -10,7 +10,7 @@
 [subject]
 name    = "<<HOLE:SUBJECT_NAME>>"           # the subject's own word, printed at the head of every comparison
 root    = "<<HOLE:ROOT>>"                   # the subject's checkout, relative to this file; the cwd of every run
-command = ["<PYTHON>", "<<HOLE:COMMAND>>"]  # the argv prefix of every run; <PYTHON> is the interpreter running golden-census
+command = ["<<HOLE:PROGRAM_RUN_COMMAND>>"]  # the words that run the program, one quoted string each, in place of the quoted hole: "bin/mytool" for a compiled tool or a launcher; "<PYTHON>", "<HERE>/runner.py" for a Python script
 census  = "census.toml"                     # the census beside this manifest: what the environment around every run is pinned to
 # version = ["--version"]                   # optional: the argv that prints the subject's version
 

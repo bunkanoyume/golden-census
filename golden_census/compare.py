@@ -407,6 +407,9 @@ def compare(manifest: Manifest, golden_dir: str, against: str | None,
     # leave a `golden-census-compare-*` behind.
     # No census is passed, so no fixed-width directory is made: this function
     # runs no subject itself, and `capture` makes its own.
+    # The rows of the fresh capture that hold no output of the subject,
+    # printed again beside this command's verdict (`unrecorded_block`).
+    unrecorded: list[str] = []
     with contextlib.ExitStack() as scratch:
         if against is not None:
             new = read_capture(against, "--against")
@@ -415,7 +418,7 @@ def compare(manifest: Manifest, golden_dir: str, against: str | None,
             roots = scratch.enter_context(
                 workspace(None, "golden-census-compare-", manifest.subject.root,
                           out=out))
-            code = capture(manifest, roots.work, out)
+            code = capture(manifest, roots.work, out, unrecorded=unrecorded)
             if code != 0:
                 return code
             new = read_capture(roots.work, "the fresh capture")
@@ -483,7 +486,8 @@ def compare(manifest: Manifest, golden_dir: str, against: str | None,
                 out.write(f"  unused: {source} row {pattern!r} permits a "
                           "movement that did not happen\n")
         if not blocking:
-            out.write(f"\n  {identical(len(permitted))}\n")
+            out.write(f"\n  {identical(len(permitted))}\n"
+                      + "".join(line + "\n" for line in unrecorded))
             return EXIT_OK
         general = (
             "Each [DIFF] row above is a change nobody attributed. "
@@ -508,10 +512,13 @@ def compare(manifest: Manifest, golden_dir: str, against: str | None,
                   if only_new_surfaces(blocking, manifest, golden)
                   else "Every [DIFF] row above is a surface the golden "
                   "records and the manifest no longer names. To stop "
-                  "recording them, run capture --force and commit the "
-                  "golden with the manifest."
+                  "recording them, delete each file marked "
+                  "only-in-golden above from the golden, then run "
+                  "capture --force and commit the golden with the "
+                  "manifest."
                   if only_dropped_surfaces(blocking, manifest, golden)
                   else general)
         out.write(f"\n  {len(blocking)} differing row(s)\n"
+                  + "".join(line + "\n" for line in unrecorded)
                   + next_line(advice, "  ") + "\n")
         return EXIT_MOVED

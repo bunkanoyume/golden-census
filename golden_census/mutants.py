@@ -474,11 +474,10 @@ def clone_subject(root: str, into: str, label: str) -> str:
     on every stamped surface.
     """
     clone = os.path.join(into, _slug(label))
-    proc = _git(["clone", "--local", "--quiet", root, clone],
+    proc = _git(["clone", "--quiet", root, clone],
                 f"the clone for {label!r}")
     if proc.returncode != 0:
-        raise Refusal(_git_failed(f"the clone for {label!r}: `git clone "
-                                  "--local`", proc),
+        raise Refusal(_git_failed(f"the clone for {label!r}: `git clone`", proc),
                       next="Run that clone by hand and fix what git reports; every mutant is "
                       "planted in a clone, never in the subject.")
     want = _head(root, f"the clone for {label!r}")
@@ -488,7 +487,7 @@ def clone_subject(root: str, into: str, label: str) -> str:
                       f"root's {want!r}; every check would be reading a "
                       "different tree from the one the mutant was measured on.",
                       next="Commit or stash the subject's working tree, then run `mutants` again: "
-                      "`git clone --local` copies HEAD, not the working tree.")
+                      "`git clone` copies HEAD, not the working tree.")
     return clone
 
 
@@ -555,14 +554,14 @@ def plant(clone: str, mutant: Mutant) -> None:
     # clone is the tree this function edits.
     _refuse_outside(mutant, path, clone,
                     "the clone golden-census made of the subject")
-    # The clone is `git clone --local` of the subject, which copies the last
+    # The clone is `git clone` of the subject, which copies the last
     # COMMIT: a file that is in the working tree and not in it is not here,
     # and this open was a `FileNotFoundError` traceback at exit 1.
     if not os.path.isfile(path):
         raise Refusal(
             f"mutant {mutant.name!r}: {mutant.file} is in the subject's "
             "working tree but not in the clone. `mutants` plants each mutant "
-            "in a `git clone --local` of the subject, which copies the last "
+            "in a `git clone` of the subject, which copies the last "
             "COMMIT and not the working tree, so a file that was never "
             "committed is not there to edit.",
             next="Commit that file to the subject's repository and run `mutants` again, or "

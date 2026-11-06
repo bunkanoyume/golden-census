@@ -2370,9 +2370,10 @@ def _arguments_of(parser: argparse.ArgumentParser, command: str = ""
 
 def _handed_on(main: Callable[[list[str]], int], argv: list[str]
                ) -> tuple[int | str | None, str]:
-    """`_quietly`, for a command line argparse itself may turn down: its
-    exit is the code, and what it wrote on standard error is kept off the
-    self-check's own."""
+    """`_quietly`, for a command line argparse may still answer itself — only
+    `--help` now, which exits 0 inside `parse_args`; a usage error is a
+    `Refusal` that `main` prints. Its exit is the code, and what it wrote on
+    standard error is kept off the self-check's own."""
     try:
         with contextlib.redirect_stderr(io.StringIO()):
             return _quietly(main, argv)
@@ -2539,6 +2540,130 @@ def _given_again_control(check: CheckRow, skip: SkipRow) -> None:
           next="`cli._Parser` keeps what every flag not declared `append` "
                "was given, and `cli.main` refuses a flag given more than "
                "once first of all, before `anchored`.")
+
+
+def _usage_refusal_control(check: CheckRow, skip: SkipRow) -> None:
+    """(aaaaaaaaa) a command line the parser turns down is ONE `REFUSED:`
+    on standard output at exit 2, in golden-census's frame with argparse's
+    detail and a `next:` that points at `--help`, and nothing on standard
+    error.
+
+    Dropped, `capture` with no flags printed argparse's usage block and its
+    own `error:` line on standard error, with no `next:` — the one answer in
+    the program that was not a refusal. Five command lines, one per way
+    argparse turns a line down: a required flag missing, a flag given no
+    value, a flag the parser lacks, a subcommand it does not know and an
+    abbreviation that fits two flags. Which parser answers each is
+    argparse's choice, so the row reads the prefix of the refusal off the
+    parser it expects and the `next:` off whether that parser has
+    subcommands. The frame and the two `next:` sentences are read from
+    `cli`, which owns them; the detail is held by a fragment argparse says
+    in every version this package supports, never by its whole sentence.
+
+    The control is a command line the parser accepts. It is run the same
+    way, through a copy of `cli` whose entry points are recorders, and it
+    must reach its command with no usage refusal: a rule that refused every
+    command line would pass the five assertions above and fail this one.
+    """
+    label = ("aaaaaaaaa  a command line the parser turns down — a required "
+             "flag missing, a flag given no value, a flag the parser lacks, "
+             "a subcommand it does not know, an abbreviation that fits two "
+             "flags — is ONE `REFUSED:` on standard output at exit 2 that "
+             "opens with the command's name and says it could not read its "
+             "command line, carries argparse's detail, and ends in the "
+             "`next:` that points at `--help` for the parser that answered, "
+             "with nothing on standard error; a command line the parser "
+             "accepts reaches its command and is not refused for its "
+             "command line")
+    copy = _fresh_module("cli")
+    if copy is None:
+        skip(label, "this install carries no importable `cli` source to build "
+                    "the copy every command line here runs through, so no "
+                    "usage error can be asked for without starting its "
+                    "command. Nothing is claimed.")
+        return
+    reached: list[tuple[str, tuple[Any, ...]]] = []
+
+    def recorder(name: str) -> Any:
+        def entry(*args: Any, **kwargs: Any) -> int:
+            reached.append((name, args))
+            return 0
+        return entry
+
+    recorded_main = _recorded(copy, recorder)
+    top = copy.build_parser().prog
+    frame = getattr(copy, "USAGE_REFUSAL", "")
+    next_bare = getattr(copy, "USAGE_NEXT_BARE", "")
+    next_sub = getattr(copy, "USAGE_NEXT_SUB", "")
+    wrong: list[str] = []
+    with _box("golden-census-usage-") as box:
+        manifest = _scratch(box)
+        golden = os.path.join(box, "golden")
+        _plant_marker(golden)
+        out_dir = os.path.join(box, "out")
+        # (command line, the parser that answers it — "" for the top one —
+        # and the fragment of argparse's detail it must carry)
+        cases: list[tuple[list[str], str, str]] = [
+            (["capture"], "capture",
+             "the following arguments are required: --manifest, --out"),
+            (["capture", "--manifest"], "capture",
+             "argument --manifest: expected one argument"),
+            (["capture", "--manifest", manifest, "--out", out_dir, "--bogus"],
+             "", "unrecognized arguments: --bogus"),
+            (["captur"], "", "argument command: invalid choice: 'captur'"),
+            (["mutants", "--m", manifest, "--golden", golden], "mutants",
+             "ambiguous option: --m could match --manifest, --mutants"),
+        ]
+        for argv, answers, detail in cases:
+            prog = f"{top} {answers}".strip()
+            expected = (next_sub if answers else next_bare).format(prog=prog)
+            opening = frame.split("{detail}")[0].format(prog=prog)
+            out, err = io.StringIO(), io.StringIO()
+            del reached[:]
+            code: int | str | None
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                try:
+                    code = recorded_main(argv)
+                except SystemExit as left:
+                    code = left.code
+            lines = out.getvalue().splitlines()
+            ok = (bool(frame) and bool(expected) and code == 2
+                  and len(lines) == 2
+                  and lines[0].startswith(f"REFUSED: {opening}")
+                  and detail in lines[0] and lines[0].endswith(".")
+                  and lines[1] == f"  next: {expected}"
+                  and not err.getvalue() and not reached)
+            if not ok:
+                wrong.append(
+                    f"{' '.join(argv).replace(box, '<box>')!r} -> exit "
+                    f"{code}, "
+                    + _one_line(out.getvalue().replace(box, "<box>"), 110,
+                                empty=_NO_VERDICT)
+                    + ", standard error "
+                    + _one_line(err.getvalue().replace(box, "<box>"), 80,
+                                empty="empty"))
+        del reached[:]
+        accepted = ["compare", "--manifest", manifest, "--golden", golden]
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                code = recorded_main(accepted)
+            except SystemExit as left:
+                code = left.code
+        if (code != 0 or not reached or err.getvalue()
+                or "could not read its command line" in out.getvalue()):
+            wrong.append(
+                f"the accepted line {' '.join(accepted[:1])!r} -> exit "
+                f"{code}, reached {[name for name, _ in reached] or 'nothing'}, "
+                + _one_line(out.getvalue().replace(box, "<box>"), 110,
+                            empty=_NO_VERDICT))
+    check(label, not wrong,
+          f"{ACTUAL}{len(cases)} command line(s) turned down, one accepted; "
+          f"not as the row says: {'; '.join(wrong) or 'none of them'}",
+          next="`cli._Parser.error` raises a `Refusal` built from "
+               "`USAGE_REFUSAL` and one of `USAGE_NEXT_BARE`, "
+               "`USAGE_NEXT_SUB`, and `cli.main` answers it where it "
+               "answers `--help`'s exit.")
 
 
 def _help_lines_of(parser: argparse.ArgumentParser) -> list[str]:
@@ -3947,12 +4072,14 @@ def _new_rows_next_control(check: CheckRow, skip: SkipRow) -> None:
 #: surface the golden records and the manifest no longer names (arm
 #: `pppppppp`), spelled here as a literal and not read from the code.
 _DROPPED_NEXT = ("Every [DIFF] row above is a surface the golden records and "
-                 "the manifest no longer names. To stop recording them, run "
-                 "capture --force and commit the golden with the manifest.")
+                 "the manifest no longer names. To stop recording them, "
+                 "delete each file marked only-in-golden above from the "
+                 "golden, then run capture --force and commit the golden "
+                 "with the manifest.")
 
 
 def _dropped_next_control(check: CheckRow, skip: SkipRow) -> None:
-    """(pppppppp) `compare` says to stop recording with `--force` when every
+    """(pppppppp) `compare` says to delete those files and run `--force` when every
     `[DIFF]` is a surface the golden records and the manifest no longer
     names, and prints the general `next:` in every other case.
 
@@ -3971,8 +4098,8 @@ def _dropped_next_control(check: CheckRow, skip: SkipRow) -> None:
     label = ("pppppppp  `compare` over a manifest that lost a surface since "
              "the golden was captured, where every `[DIFF]` is that "
              "surface's file or the `surfaces.json` that lists it, exits 1 "
-             "and its `next:` says to stop recording them with `capture "
-             "--force`; the same comparison with another surface's output "
+             "and its `next:` says to delete those files from the golden, "
+             "then run `capture --force`; the same comparison with another surface's output "
              "changed, and with a stray file in the golden, each print the "
              "general `next:` and not that sentence")
     wrong: list[str] = []

@@ -126,6 +126,9 @@ class Recorder:
         self.written: list[str] = []
         self.surfaces: dict[str, dict[str, Any]] = {}
         self.skipped: list[tuple[str, str, str]] = []
+        #: The rows that ran and put no byte anywhere, as `(input, surface)`:
+        #: the test `SILENT_SURFACE` states, asked where it is printed.
+        self.silent: list[tuple[str, str]] = []
 
     def _directory(self, subject_input: str) -> str:
         """`<out>/<input>`, made if it is not there: `out` and that one level,
@@ -616,7 +619,12 @@ def scan_text(name: str, text: str, patterns: list[tuple[str, re.Pattern[str]]],
                                   and after_placeholder(line, match.start(),
                                                         tokens))),
                          None)
-            if found:
+            # One occurrence is one span: a second pattern matching the
+            # same characters (a home path is both "an absolute home path"
+            # and "the running user's home directory") is the same hit, and
+            # the first pattern's label stands.
+            if found and not any(span[:2] == (found.start(), found.end())
+                                 for span in spans):
                 spans.append((found.start(), found.end(), label,
                               found.group(0)))
         # One occurrence is one hit: where a spelling lies inside a longer
@@ -1241,6 +1249,8 @@ class _Stage:
         self.made = made
         self.swapped = False
         self.hold = contextlib.ExitStack()
+        #: `unrecorded_block` of this capture's rows, set when they end.
+        self.unrecorded: list[str] = []
 
 
 def _say(out: Any, line: str) -> None:
@@ -1591,7 +1601,8 @@ def _to_null_if_real(stream: Any) -> None:
 def capture(manifest: Manifest, out_dir: str, out: Any,
             inputs: tuple[str, ...] = (), force: bool = False,
             twice: bool = False, *, landed_note: bool = False,
-            guarded: Guarded | None = None) -> int:
+            guarded: Guarded | None = None,
+            unrecorded: list[str] | None = None) -> int:
     """Record every row of `manifest`. Returns a process exit code.
 
     The rows are recorded under the temp root and moved into place by
@@ -1627,6 +1638,10 @@ def capture(manifest: Manifest, out_dir: str, out: Any,
     `inputs` and this `force`, when the caller asked it before starting
     anything; `None` asks it here. It is asked once either way, and whether
     this capture replaces one is its answer, not the disk's after the runs.
+
+    `unrecorded_block`'s lines are printed after the rows' last verdict —
+    `--twice:` when it ran — and before `capture complete`; `unrecorded`,
+    when given, receives them, so `compare` prints them beside its own.
     """
     # Before the clone and before the first run: a refusal costs nothing here
     # and everything after ten minutes of capturing.
@@ -1667,6 +1682,10 @@ def capture(manifest: Manifest, out_dir: str, out: Any,
                 finally:
                     if second.recorded:
                         removed(second.recorded, out)
+            for line in stage.unrecorded:
+                out.write(line + "\n")
+            if unrecorded is not None:
+                unrecorded.extend(stage.unrecorded)
             _swap_in(stage, out_dir, inputs, manifest, replaces)
         # The one line written after the swap, so the one write that can meet a
         # reader who stopped a line early, or a standard output that refuses
@@ -1919,7 +1938,56 @@ def _record_everything(manifest: Manifest, stage: _Stage, out: Any,
 
     recorder.roots = roots
     recorder.finish()
+    stage.unrecorded = unrecorded_block(recorder)
     return _scan(recorder, roots, where.clones, stage.recorded, out, fold)
+
+
+def unrecorded_block(recorder: Recorder) -> list[str]:
+    """The lines printed beside a verdict when some rows hold no output of
+    the subject: a heading counting them, then one line per reason. Empty
+    when every row recorded something, so the common case prints nothing.
+
+    A row holds no output of the subject when it was skipped — declared
+    unrunnable, or its input's pinned tree was unavailable — or when it ran
+    and put no byte anywhere (`Recorder.silent`). The verdict's file count
+    counts the `.skip` files and each input's `surfaces.json` too, so a
+    capture that recorded almost nothing still counts files; this block is
+    what says which rows those are.
+
+    Within an input, rows sharing one reason are one line. When every row of
+    the input shares it, the input is named once with its row count;
+    otherwise each row is named. A skip's reason is the one on disk — the
+    fixed sentence for an unavailable tree, never the machine's — so the
+    block is the same on every machine.
+    """
+    silent = set(recorder.silent)
+    total = 0
+    lines: list[str] = []
+    unrecorded = 0
+    for name, rows in recorder.surfaces.items():
+        surfaces = [surface for surface in rows if surface != "_counts"]
+        total += len(surfaces)
+        groups: dict[str, list[str]] = {}
+        for surface in surfaces:
+            entry = rows[surface]
+            if entry.get("status") == "skipped":
+                why = ("not run — "
+                       + str(entry.get("reason", "")).removeprefix("SKIP — "))
+            elif (name, surface) in silent:
+                why = "ran, printed nothing and wrote no file"
+            else:
+                continue
+            groups.setdefault(why, []).append(surface)
+        for why, named in groups.items():
+            unrecorded += len(named)
+            scope = (f"{name} ({len(named)} row{'' if len(named) == 1 else 's'})"
+                     if len(named) == len(surfaces)
+                     else ", ".join(f"{name}/{surface}" for surface in named))
+            lines.append(f"    {scope}: {why}")
+    if not lines:
+        return []
+    return [f"  {unrecorded} of {total} row{'' if total == 1 else 's'} "
+            "recorded no output from the subject:", *lines]
 
 
 #: What a surface that recorded nothing is said to be, under its own row.
@@ -2018,6 +2086,7 @@ def _record_surface(manifest: Manifest, subject_input: Input, surface: Surface,
     # written file is asked whether it was written (`None` is none), not
     # whether it holds a byte: an empty one is a file the golden holds.
     if not row.raw.out and not row.raw.err and row.raw.written is None:
+        recorder.silent.append((subject_input.name, surface.name))
         out.write(fold(SILENT_SURFACE))
     if surface.counter and row.raw.written is None:
         out.write(fold(UNCOUNTED))
@@ -2038,30 +2107,47 @@ def _contraband_next(census: Census,
 
     A hit on a directory golden-census knows the path of — one of
     `SOURCE_HITS` — whose `source` no `path` row of the census names is
-    folded by adding that row, and the sentence says which. Any other hit —
-    a home path, a temp path, a sibling of a directory a `path` row does
-    fold — takes a `regex` fold, which a `path` row cannot stand in for.
+    folded by adding that row, and the sentence says which. Of the hits
+    left, one in `SURFACES_FILE` is in the recorded argv: the manifest's own
+    text, which a `regex` fold never reads, so the sentence sends the reader
+    to the manifest. Any other hit — a home path, a temp path, a sibling of
+    a directory a `path` row does fold — takes a `regex` fold, which a `path`
+    row cannot stand in for. The sentences come in that order, and one
+    " Then capture again." ends them.
     """
     folded = {row.source for row in census.folds_of("path")}
     found = {label for _path, _number, label, _token in hits}
     lacking = [source for source in PATH_SOURCES
                if SOURCE_HITS[source] in found and source not in folded]
+    covered = {SOURCE_HITS[source] for source in lacking}
+    rest = [hit for hit in hits if hit[2] not in covered]
+    in_argv = any(os.path.basename(hit[0]) == SURFACES_FILE for hit in rest)
+    printed = any(os.path.basename(hit[0]) != SURFACES_FILE for hit in rest)
     regex = (" a `path` row folds one of the four directories golden-census "
              "itself knows the path of (" + ", ".join(PATH_SOURCES)
              + ") and nothing else.")
-    if not lacking:
-        return ("Stop the subject printing the path where you can; "
-                "otherwise add the census `regex` fold that names the "
-                "directory quoted above, then capture again. A `path` "
-                "fold cannot name it:" + regex)
-    said = " ".join(f"Add a census `path` row with `source = \"{source}\"`: "
-                    f"it folds {SOURCE_HITS[source]}, quoted above, and this "
-                    "census has none." for source in lacking)
-    if found - {SOURCE_HITS[source] for source in lacking}:
-        said += (" For any other line quoted above, stop the subject "
-                 "printing the path where you can; otherwise add the census "
-                 "`regex` fold that names its directory:" + regex)
-    return said + " Then capture again."
+    said = [f"Add a census `path` row with `source = \"{source}\"`: "
+            f"it folds {SOURCE_HITS[source]}, quoted above, and this "
+            "census has none." for source in lacking]
+    if in_argv:
+        said.append(
+            "The path is in `surfaces.json`, the record of each row's argv; "
+            "a `regex` fold never reads it, and a `path` fold reaches it for "
+            "the four directories only. The manifest spells the path, in "
+            "an input's or a surface's `args` or a matrix's `record_argv`: "
+            "reach the directory through <WORK> with a [[setup]] step that "
+            "links or copies it, or pin the repository as a git/sha input "
+            "and spell <CLONE>/….")
+    if printed and (lacking or in_argv):
+        said.append("For any other line quoted above, stop the subject "
+                    "printing the path where you can; otherwise add the "
+                    "census `regex` fold that names its directory:" + regex)
+    elif printed:
+        said.append("Stop the subject printing the path where you can; "
+                    "otherwise add the census `regex` fold that names the "
+                    "directory quoted above. A `path` fold cannot name it:"
+                    + regex)
+    return " ".join(said) + " Then capture again."
 
 
 def _scan(recorder: Recorder, roots: Roots, clones: list[str], recorded: str,

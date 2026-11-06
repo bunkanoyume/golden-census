@@ -46,7 +46,7 @@ SKILL_DIR = f"{PROG}-skill"
 #: characters in it. The human set is what a person reads; the agent set is
 #: what an agent reads, and its first member is the file it reads first,
 #: whole. `Layout` resolves each against its root and `docs` checks them.
-HUMAN_SET = ("README.md", "docs/manual.md")
+HUMAN_SET = ("README.md", "docs/reference.md")
 AGENT_SET = (f"{SKILL_DIR}/SKILL.md", f"{SKILL_DIR}/references/*.md")
 
 #: The four directories golden-census itself knows the absolute path of, by the

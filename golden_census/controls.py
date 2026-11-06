@@ -621,8 +621,10 @@ def _regex_fold_control(row: Row, census: Census, manifest: Manifest,
 def _first_unfolded_leaf(document: Any, row: Row,
                          trail: tuple[str | int, ...] = ()
                          ) -> tuple[tuple[str | int, ...], Any] | None:
-    """The trail — dict keys and list indexes, in order — to a scalar the
-    fold does NOT touch, and its value, for the one-byte arm.
+    """The trail — dict keys and list indexes, in order — to a string or
+    integer the fold does NOT touch, and its value, for the one-field arm,
+    which adds 1 to the integer or appends to the string. A boolean, a
+    float, null, and a scalar held directly in a list are passed over.
 
     A trail and not a dotted string: a string has to be parsed again to set
     the leaf, and `items[0]` or a key holding a `.` does not parse back.
@@ -718,10 +720,12 @@ def _json_fold_control(row: Row, census: Census, manifest: Manifest,
     leaf = _first_unfolded_leaf(document, row)
     if leaf is None:
         reported = True
-        note = "no scalar outside the folded fields to move"
+        note = "no string or integer outside the folded fields to move"
         skip(_label(row, "the one-field arm"),
-             "the sample document has no scalar outside the folded fields. The "
-             "other arms ran. Nothing is claimed for this one.")
+             "the sample document needs at least one string or integer that "
+             "is the value of a key outside the folded fields; a boolean, a "
+             "float, null, or a value held directly in an array does not "
+             "count. The other arms ran. Nothing is claimed for this one.")
     else:
         trail, value = leaf
         _set_leaf(document, trail,

@@ -5,7 +5,7 @@
 Testing test in the package's test target. It reads a job from the
 environment and loads the fixtures beside it. It calls ONE pure function over
 each fixture. It writes every answer as one canonical JSON document to the
-path the job names. `swift test --filter GoldenCensusRunner` is the subject
+path the job names. `swift test -q --filter GoldenCensusRunner` is the subject
 command. The written file is the surface.
 
 ## 1. What the runner freezes
@@ -65,8 +65,8 @@ Two facts stand behind those lines. Both were measured on a scratch package.
 
 - **`<WRITES>` is valued in `env` exactly as it is in `args`.** The path is
   spelled once, in `writes`, and the variable names it. A surface that declares
-  no `writes` and spells the token anyway is still refused, and the refusal
-  names the row (`docs/manifest-format.md`, the `env` key).
+  no `writes` and spells the token anyway loads, and is refused when that row
+  runs, naming the row (`docs/Known_Issues.md`, the `<WRITES>` caution).
 - **`swift test` prints timestamps, even with `-q`.** XCTest's suite banners
   (`Test Suite 'Selected tests' started at 2026-09-05 14:56:01.936.`), their
   durations and Swift Testing's own summary go to stdout. Stdout is a golden.

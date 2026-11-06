@@ -9,7 +9,7 @@ stated, and both are files the consumer owns.
 import os
 import sys
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 #: The interpreter option (`python3 -X golden_census_say_where …`) that makes
 #: the package say, on standard error and before anything else, which copy of

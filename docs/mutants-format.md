@@ -1,56 +1,35 @@
-# The mutants file
+# The mutants file: `mutants.toml`
 
-A mutant is a deliberate small change to the subject's code, together with the name of the check that must catch it. The `mutants` command plants each mutant in a repo-shaped copy of the subject and runs every check. It prints a table: mutant × check → FIRED, SILENT or REFUSED.
+A golden proves that a change moved nothing the recording covers. It cannot prove that the recording covers everything a change could affect. If a change alters a part of the program whose output is never recorded, `compare` still says `IDENTICAL`. The mutants file is how a project tests for that. It lists small deliberate changes to the program, called mutants, and for each one the check that must notice it. A check that stays silent on a mutant shows a change the recording would miss.
 
-Three things are a FAIL of the checks, not of the subject:
+The `mutants` command makes a copy of the program's repository, applies one mutant to it, runs every check, and repeats for each mutant. It prints a table with one row per mutant and one column per check. Each cell is `FIRED` (the check noticed the change), `SILENT` (it did not) or `REFUSED` (the check could not run). A mutant that a check named in its `expect` list does not notice is a failure of the checks, not of the program.
 
-- A mutant that no check catches. It shows a hole in the net.
-- A check that a mutant names in `expect`, and that stays SILENT.
-- A mutant whose comparator is REFUSED.
+A check is either golden-census's own comparison, which captures the mutated copy and compares it with the golden, or any command of the project's own, with a rule for when it counts as having fired.
 
-Hand-planted mutants are re-planted by hand at every gate, or not at all. This file makes them data the gate re-runs.
+The file is `mutants.toml`, written by `init` beside the manifest, with its holes left for the project to fill. `mutants` refuses a file that still contains a hole.
 
-## Vocabulary
-
-| word | meaning |
-|---|---|
-| mutant | one `find`/`replace` edit to one file of the subject, with the checks expected to fire |
-| check | a command run against the mutated copy whose result is read as FIRED or SILENT, or REFUSED for a comparator whose capture or comparison refused |
-| the null mutant | the unmutated copy, run through every check first (see "Mechanics, in order", step 3) |
-| FIRED | the check reported the change: its `fires` condition held |
-| SILENT | the check did not report the change |
-| REFUSED | the comparator's capture of the mutated copy refused, or its comparison did, over a moved row that two `[[movements]]` rows name. No comparison was made, so the check neither caught nor missed the mutant. The mutant is a FAIL. |
+This document covers:
+1. File format
+2. `[checks.<name>]`: a check
+3. `[[mutant]]`: a change to the program
+4. What `mutants` does, in order
+5. The output
+6. How golden-census checks `mutants` itself
+7. The shipped example
 
 ## File format
 
-The mutants file is TOML, beside the manifest.
-
-A string of this file may spell three placeholders:
+The file is TOML. Three placeholders may appear in its strings:
 
 - `<PYTHON>` is the interpreter running golden-census.
-- `<ROOT>` is the MUTATED COPY, never the original.
-- `<HERE>` is the directory this mutants file sits in.
+- `<ROOT>` is the mutated copy of the program, never the original.
+- `<HERE>` is the directory this file is in.
 
-golden-census refuses any other token when the file is read. The refusal names the token and the whole list. It comes before golden-census makes a clone.
+Any other `<…>` token is refused when the file is read, before any copy is made. The refusal names the token and lists the three.
 
-**Every key is read or refused.** golden-census reads every key of every table of this file, or refuses it. A `[checks.<name>]` or a `[[mutant]]` that carries a key golden-census does not read is REFUSED when the file is read. The refusal names the key, the table it is in, and the keys that table takes.
+Every key in the file must be one golden-census reads. A `[checks.<name>]` or `[[mutant]]` table with a key golden-census does not read is refused when the file is read. The refusal names the key, the table, and the keys that table accepts.
 
-**`golden`** resolves three ways. The form it is written in is the whole of how golden-census reads it:
-
-| written as | resolved against |
-|---|---|
-| a bare path, such as `golden` or `tests/golden` | the MUTATED COPY, so the golden set has to be committed in the subject's own repository |
-| `<HERE>/…` | the directory this mutants file sits in; the form a consumer whose goldens do not live in the subject needs |
-| an absolute path | itself |
-
-A refusal about a golden directory that is not there names which of the three forms it was read as.
-
-The shipped example writes the second form. The other two are **invented for this document**, because that example has no use for them:
-
-```toml
-golden = "tests/golden"                 # a bare path: inside the mutated copy
-golden = "/an/absolute/path/to/golden"  # itself, wherever it is
-```
+A complete file, with every kind of entry:
 
 ```toml
 [checks.comparator]
@@ -73,57 +52,72 @@ replace = 'LABEL = "wordstats/2"'
 expect  = ["label"]
 ```
 
-The `differential` check is invented for this document. The other two checks and the mutant are the shipped example's own.
+The `comparator` and `label` checks and the mutant are from the shipped example. The `differential` check is invented for this document, to show the third shape.
 
-The `find` is the current text of the file. A mutants file is therefore written against one state of the subject, and it refuses when the code moves under it. A value that is set at two places needs the whole block around one of them as its `find`. Otherwise the uniqueness rule refuses the run.
+## `[checks.<name>]`: a check
 
-**Where a check runs.**
+A check is one of two kinds. It has either `builtin = "compare"` with a `golden`, or a `command` with a `fires` rule. A `golden` on a command check, or a `fires` on a builtin check, is refused when the file is read, naming the check and the key.
 
-- The working directory of a `command` check is the mutants file's own directory.
-- One case differs. When the command's first element after `<PYTHON>` names a file under the subject root, an absolute path under it or a relative one that exists from the root, the working directory is the mutated clone.
-- `label` above is the second case: its script lives inside the subject. `differential` is the first.
+### The builtin comparison
 
-**What a `command` check runs under.**
+`builtin = "compare"` captures the mutated copy under the manifest and compares the capture with the golden directory named by `golden`.
 
-- The environment is the census's built environment, its pins and its `passthrough`, as every subject subprocess gets it. One variable differs: `TMPDIR`.
-- golden-census sets `TMPDIR` to a directory of the check's own under the run's scratch directory, made before the check starts and removed when it ends, so a check whose temporary files follow `TMPDIR` never writes into the copy it runs in. Its path is `<temp root>/golden-census-mutants-XXXXXXXX/XXXXXXXX`, 40 characters longer than the temp root. golden-census does not make the census's fixed-width directory for a check.
-- A `TMPDIR` the check left unremovable, and still on disk when the run ends, is named after the table, or above the refusal that ended the run, one line each: `a directory golden-census made could not be removed: <path> — delete it by hand and name it in your report`. The check's verdict stands.
+- It is `FIRED` when the comparison is not `IDENTICAL`.
+- A row that the manifest's `[[movements]]` permits to move does not count as a difference.
+- A moved row that two `[[movements]]` rows both name is `REFUSED`, as `compare` itself refuses it.
+- When the capture of the mutated copy is refused, the check is `REFUSED`, never `FIRED`. The mutant may have made the program do something golden-census will not record, or the machine may have stopped the capture. Either way nothing was compared. golden-census prints the refusal's first line under the mutant's row; if the refusal has a block, the block's first line, which names the command, is printed under that.
 
-**`[checks.<name>]`** is either a `builtin = "compare"` or a `command` with a `fires` condition.
+`golden` is read in one of three forms, decided by how it is written:
 
-`golden` belongs to the `builtin` and `fires` to the `command`. A `fires` on a `builtin` check, or a `golden` on a `command` check, is refused when the file is read, naming the check and the key. The check would run without it.
+| Written as | Resolved against |
+|---|---|
+| a bare path, such as `golden` or `tests/golden` | the mutated copy, so the golden must be committed in the program's own repository |
+| `<HERE>/…` | the directory this file is in; the form for a project whose goldens are not inside the program's repository |
+| an absolute path | itself |
 
-`builtin = "compare"` is a full capture of the mutated copy under the manifest, compared to `golden`. `golden` is written in whichever of the three forms above.
+A refusal about a golden directory that is not there says which of the three forms the value was read as. The shipped example uses the second form. The other two, for illustration:
 
-- It is FIRED when the comparison is not IDENTICAL.
-- A row that the manifest's `[[movements]]` permits is not counted.
-- A moved row that two of its rows name is REFUSED, as `compare` refuses it.
-- It is REFUSED, never FIRED, when the capture of the mutated copy refuses. The mutant may have made the subject do something golden-census will not record, or the machine may have stopped the capture. Either way no comparison was made.
-- golden-census prints the refusal's first line under the mutant's row. When the refusal has a block, it prints the block's first line under that. That line names the command.
+```toml
+golden = "tests/golden"                 # a bare path: inside the mutated copy
+golden = "/an/absolute/path/to/golden"  # itself, wherever it is
+```
 
-A `command` check has a `fires` condition. There are three:
+### A command check
 
-- `"exit-nonzero"`.
-- `{ pattern = <regex> }`. golden-census searches stdout and stderr, each on its own, in multiline mode, as printed. A check that ends its lines with `\r\n` keeps the `\r`, so a pattern that ends in `$` must end in `\r?$` to match there.
-- `{ absent = <text> }`. It is FIRED when the text that a clean run prints is missing.
+`command` is the argv of a command of the project's own. `fires` says when it counts as having noticed the mutant. There are three rules:
 
-**`file`**
+- `"exit-nonzero"`: fired when the command exits non-zero.
+- `{ pattern = <regex> }`: fired when the regular expression matches stdout or stderr. Each stream is searched on its own, in multiline mode, exactly as printed. A command that ends its lines with `\r\n` keeps the `\r`, so a pattern that ends in `$` must end in `\r?$` to match.
+- `{ absent = <text> }`: fired when text that a clean run prints is missing.
 
-- `file` is a RELATIVE path under the subject root. It is not absolute and has no `..` component. golden-census resolves it against the root, and `plant` opens it for writing. A `file` that breaks this rule is a REFUSAL that names the mutant and the value, before any clone is made.
-- `file` must also RESOLVE under the root. A symbolic link out of the tree is spelled as an ordinary relative path, so golden-census asks the file system for the destination as well. A destination outside the root is a refusal that names the mutant and the path the link resolves to.
-- `file` must also be COMMITTED. `mutants` plants each mutant in a `git clone --local` of the subject. That clone copies the last commit and not the working tree. A file that was never committed is not in the clone. It is a refusal that names the mutant and the file. The manual lists the git settings golden-census gives the clone.
+Where the command runs:
 
-**`find`** must occur exactly once in `file`.
+- Normally, in the directory this file is in.
+- If the first element after `<PYTHON>` names a file under the program's root, either as an absolute path under it or as a relative path that exists from the root, the command runs in the mutated copy instead. `label` above is this case, because its script is inside the program. `differential` is the normal case.
 
-- Zero occurrences is a REFUSAL that names the mutant. So are several. golden-census makes the refusal after the census's controls and before it makes any clone or plants any mutant.
-- A mutant that no longer applies because the code moved is a refusal, never a silent pass.
+What the command runs under:
 
-**`expect`** names the checks that MUST fire. Every other check's verdict is reported but does not gate.
+- The environment the census builds: its pinned variables and its passthrough list, the same as every run of the program gets. One variable differs: `TMPDIR`.
+- golden-census sets `TMPDIR` to a directory of the check's own, made before the check starts and removed when it ends, so that a check whose temporary files follow `TMPDIR` never writes into the copy it runs in. The path is `<temp root>/golden-census-mutants-XXXXXXXX/XXXXXXXX`, 40 characters longer than the temp root. golden-census does not make the census's fixed-width directory for a check.
+- If that `TMPDIR` cannot be removed when the check ends and is still there when the run ends, golden-census prints one line for it, under the table or above the refusal that ended the run: `a directory golden-census made could not be removed: <path> — delete it by hand and name it in your report`. The check's result stands.
+- No time limit. golden-census never stops a command for taking too long; the caller does, as the skill's `references/commands.md` explains.
 
-- A check that fires unexpectedly prints `FIRED` in its own cell. It prints `(<check>: unexpected)` at the end of the row, where every note about that row is collected.
-- A check that `expect` names and that stays SILENT adds `(<check>: expected, SILENT)` to those notes. The mutant is then a FAIL.
+## `[[mutant]]`: a change to the program
 
-This table is from a run of the shipped example with its second mutant replaced. The new mutant's edit moves a recorded surface and `LABEL`. It expects only the comparator:
+Each mutant has five keys.
+
+- `name` is the row's label in the table and the word every refusal about this mutant uses.
+- `file` is the file to change, as a relative path under the program's root. Three rules:
+  - It must be relative, with no `..` component. An absolute path or one with `..` is refused when the file is read, naming the mutant and the value.
+  - It must resolve under the root. A symbolic link that points out of the tree looks like an ordinary relative path, so golden-census also asks the file system where it leads. A destination outside the root is refused, naming the mutant and the destination.
+  - It must be committed. `mutants` works in a `git clone` of the program, and a clone contains the last commit, not the working tree. A file that was never committed is not in the clone, and the mutant is refused when golden-census tries to apply it (step 4 below), after the null mutant's checks have run. The skill's `references/machine.md`, "The settings of git", lists the git settings the clone is made with.
+- `find` is the exact current text to replace. It must occur exactly once in `file`. Zero occurrences, or more than one, is refused when the file is read, before any control runs or any copy is made, naming the mutant. This means a mutants file is written against one state of the program and refuses when the code changes under it, instead of silently passing. If the text occurs twice, use a larger block around one occurrence as the `find`.
+- `replace` is what the text becomes.
+- `expect` lists the checks that must fire. Every other check still runs and its result is printed, but it does not decide the verdict.
+  - A check not in `expect` that fires prints `FIRED` in its cell and `(<check>: unexpected)` at the end of the row, where every note about the row is collected.
+  - A check in `expect` that stays `SILENT` adds `(<check>: expected, SILENT)` to the notes, and the mutant is a failure.
+
+This table is from a run of the shipped example with its second mutant replaced by one whose change moves a recorded surface and the `LABEL` constant, expecting only the comparator:
 
 ```text
   mutant                            comparator  label
@@ -131,30 +125,17 @@ This table is from a run of the shipped example with its second mutant replaced.
   a mutant                          FIRED       FIRED     (label: unexpected)
 ```
 
-The net caught more than the table predicted. That is worth reading, not failing.
+The checks caught more than expected. That is worth reading, not a failure.
 
-**A check gets no deadline from golden-census:** the caller owns every deadline, as the manual states.
+## What `mutants` does, in order
 
-## Mechanics, in order
-
-1. Load the manifest and the mutants file. golden-census refuses on any of these:
-   - a key that no table of the mutants file reads;
-   - a `fires` on a `builtin` check, or a `golden` on a `command` check;
-   - an unknown check name in `expect`;
-   - a missing `file`;
-   - a `file` that is not a relative path under the subject root, or that resolves out of it;
-   - a `file` the clone does not carry;
-   - a `find` that is not unique.
-2. Clone the subject root with `git clone --local` into the scratch directory. The copy is repo-shaped. A subject that stamps its output with its commit needs a repository to read, and a bare file copy produces spurious diffs on every stamped surface. The manual's temp-root rule says what the temp root needs for a large subject.
-3. **The null mutant.** Run every check on the unmutated clone.
-   - Any FIRED is a REFUSAL of the run that names the check. Its verdicts on the real mutants would mean nothing.
-   - A capture or a comparison that refuses on the unmutated clone is REFUSED. The run's refusal is that one's. It names the null mutant and the check. It carries the refusal whole, with its own `next:` and any about-to-run block it carries. It names any other check that fired there.
-4. For each mutant:
-   1. Make a fresh clone.
-   2. Apply the edit.
-   3. Run `git commit` inside the clone, so the tree is CLEAN at a new sha. A dirty stamp is longer than a clean one and moves the acceptance surface's size lines by itself, so the comparison comes after the commit.
-   4. Run every check, with `<ROOT>` set to the clone and the manifest's root overridden to it.
-5. Print the table and the verdict. The exit code is 0 when every mutant was caught by every check it expects and no check was REFUSED on it. It is 1 otherwise. It is 2 on a refusal of the run.
+1. **Reads the manifest and the mutants file.** It refuses on any of these: a key no table reads; a `fires` on a builtin check or a `golden` on a command check; a check name in `expect` that does not exist; a missing `file`; a `file` that is not a relative path under the root, or that resolves out of it; a `find` that does not occur exactly once.
+2. **Clones the program's root** with `git clone` into a scratch directory under the temp root (the skill's `references/machine.md`, "The temp root"). This clone is not kept in the clone cache. When the temp root is on the same file system as the program, git links the object files instead of copying them. The copy is a repository, not a bare copy of the files, because a program that stamps its output with its commit needs one to read; a bare copy would make every stamped surface differ. The note on Linux in `references/machine.md` says what the temp root needs for a large program.
+3. **Runs the null mutant.** Every check runs on the unchanged clone first.
+   - A check that fires on the unchanged program would fire on anything, and its results on the real mutants would mean nothing. So any `FIRED` here refuses the whole run, naming the check.
+   - A capture or comparison that refuses on the unchanged clone refuses the run with that refusal, whole, with its own `next:` line, naming the null mutant and the check, and naming any other check that fired.
+4. **For each mutant:** makes a fresh clone; applies the change (a `file` the clone does not contain is refused here, naming the mutant and the file); runs `git commit` inside the clone, so that the tree is clean at a new commit (a program that stamps its output with its commit would otherwise print a longer "dirty" stamp, which by itself moves the size of some recorded lines); then runs every check with `<ROOT>` set to the clone and the manifest's root overridden to it.
+5. **Prints the table and the verdict.** The exit code is 0 when every mutant was caught by every check in its `expect` and no check was `REFUSED`; 1 otherwise; 2 when the run itself was refused.
 
 ## The output
 
@@ -175,18 +156,13 @@ MUTANTS  mutants.toml  (2 mutants, 2 checks)
   2/2 mutants caught by every check they expect
 ```
 
-Read the two SILENT cells, not the two FIRED ones. Each check catches the mutant the other misses. The comparator sees a change that reaches a recorded surface, and is blind to one that does not. The `label` command check sees a constant no surface carries.
+The two `SILENT` cells are the point. Each check catches the mutant the other misses: the comparator notices a change that reaches a recorded surface and cannot notice one that does not; the `label` command check notices a constant that no recorded surface contains.
 
-A column of FIREDs all the way down would mean a check that fires at anything. That proves nothing about the net. The null mutant row above the table rules it out: both checks are SILENT on the unmutated clone, so every FIRED below it is the mutant and not the check.
+A column of `FIRED` all the way down would mean a check that fires at anything, which proves nothing. The `null mutant` line above the table rules that out: both checks are `SILENT` on the unchanged program, so every `FIRED` below is caused by the mutant.
 
-Two figures in that block are not about the example. `<PGID>` stands for the process group's number, which is this run's and no other's. The tally is of this census's own controls, one row per pin and per fold. It moves with the census and with what this machine's temp root lets a control exercise. Read the shape, and run the command for the number. golden-census's own arms are not in the tally: `--selfcheck` is where those are asked for.
+Two figures in this output are not fixed. `<PGID>` stands for the process group number, which differs every run. The `3/3 census controls passed` tally counts this census's own controls, one per pin and fold; it changes with the census and with what the machine's temp root allows a control to test. golden-census's own checks are not in that tally; `--selfcheck` runs those.
 
-A subject with a pinned input prints more. Each capture the comparator makes prints the lines `capture` prints about that input, under a heading that names the copy and the check:
-
-- the `clone:` line;
-- the line that names what git ignores in a kept clone, when there is one (see `manifest-format.md`, `[inputs.<name>]`).
-
-A blank line ends each block. The null mutant's block comes before the null mutant's line. Each mutant's block comes before the table. The heading lines below are from a run on a scratch subject with a pinned input. `<url>` and `<full sha>` stand for the clone's address and commit:
+A program with a pinned input prints more. Each capture the comparator makes prints the lines `capture` prints about that input, under a heading naming the copy and the check: the `clone:` line, and, for a kept clone, the line naming what git ignores there (see `manifest-format.md`, `[inputs.<name>]`). A blank line ends each block. The null mutant's block comes before the `null mutant:` line, and each mutant's block before the table. From a run on a scratch program with a pinned input, with `<url>` and `<full sha>` standing for the clone's address and commit:
 
 ```text
   the null mutant, check 'comparator':
@@ -196,35 +172,29 @@ A blank line ends each block. The null mutant's block comes before the null muta
     clone: <url> @ <full sha>, clean
 ```
 
-## Controls golden-census runs on itself
+## How golden-census checks `mutants` itself
 
-The `mutants` command has its own arms in `--selfcheck`, on a throwaway subject golden-census writes:
+`--selfcheck` runs `mutants` on a throwaway program golden-census writes, and checks that:
 
-- A `find` that occurs twice is refused, naming the mutant.
-- A mutant whose `expect` check stays silent is a FAIL row.
-- A check that fires on the null mutant refuses the run.
-- A mutant every check misses is a FAIL.
+- a `find` that occurs twice is refused, naming the mutant;
+- a mutant whose expected check stays silent is reported as a failure;
+- a check that fires on the null mutant refuses the run;
+- a mutant that every check misses is reported as a failure.
 
-Without these arms, a table of FIREDs proves only that the printer works.
+Without these, a table full of `FIRED` would prove only that the table printer works.
 
-## Example — the shipped worked example
+## The shipped example
 
-`examples/python-function/mutants.toml`, whole. It has two checks and two mutants. That is the smallest table that can say anything, because one check alone cannot be shown to catch what another misses.
+`examples/python-function/mutants.toml`, in full. It has two checks and two mutants, which is the smallest table that can show anything: with one check, nothing can show that it catches what another misses.
 
-The live rows are:
-
-- `comparator`, the built-in. Its golden is named with `<HERE>/`, because the goldens sit beside this file rather than inside the subject.
-- `label`, a command check. Its `fires` is `{ absent = … }`: FIRED when the text a clean run prints goes missing.
-- The two mutants, one aimed at each check.
-
-The commented rows are the two `fires` shapes this example does not use, `"exit-nonzero"` and `{ pattern = … }`. They stay in the file so that a consumer can see all three without leaving it.
+The live entries are the builtin `comparator`, whose golden is named with `<HERE>/` because the goldens sit beside this file rather than inside the program; the `label` command check, whose `fires` is `{ absent = … }`; and two mutants, one aimed at each check. The commented-out entries are the two `fires` rules this example does not use, left in the file so that a reader sees all three without leaving it.
 
 ```toml
 # The mutants file: deliberate small changes to the subject's code, each with
 # the name of the check that must catch it. `golden-census mutants` plants every one
 # in a repo-shaped copy of the subject, runs every check, and prints the table
 # mutant × check → FIRED, SILENT or REFUSED. A mutant no check catches is a
-# FAIL of the checks, not of the subject: it shows a hole in the net.
+# FAIL of golden-census, not of the subject: it shows a hole in the net.
 # `docs/mutants-format.md` is authoritative for every key.
 #
 # `golden-census init` wrote this file with its holes IN PLACE; `mutants` REFUSES a

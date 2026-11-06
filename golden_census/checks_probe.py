@@ -1,4 +1,4 @@
-"""The arms over `probe`: the five clauses of `docs/contract.md`, each shown
+"""The arms over `probe`: the five clauses of `docs/subject-requirements.md`, each shown
 green on a command that keeps it and red on one that does not.
 """
 
@@ -28,7 +28,7 @@ from .proof import (
 
 # ------------------------------------------------------- the `probe` controls
 #
-# One arm per clause of `docs/contract.md`, each on a scratch command written
+# One arm per clause of `docs/subject-requirements.md`, each on a scratch command written
 # for it, plus the all-PASS arm that proves the five rows are not simply
 # always red. The scripts are the plan's: one that does not write, one that
 # writes the time, one that exits 0 without writing, one that prints its cwd,

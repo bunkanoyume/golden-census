@@ -1,16 +1,16 @@
 """The two documents, checked against the parser and against a measurement.
 
-Two documents describe golden-census — `README.md` for humans,
-`golden-census-skill/SKILL.md` for agents — and both promise the command line's real
-surface. A command or a flag the parser dispatches on but neither document
+Two document sets describe golden-census — `README.md` and `docs/reference.md`
+for a person, `golden-census-skill/` for an agent — and both promise the command
+line's real surface. A command or a flag the parser dispatches on but neither document
 names is drift a reader cannot detect, so parity is checked FROM THE PARSER
 OUTWARD: the parser is the authority, both documents must carry what it
 exposes, and a table row naming a flag the parser does not expose is the same
 lie in the other direction.
 
-What this module PRICES is a different question from what the README's cost
-table says. The table is a reader's order-of-magnitude guide, taken by hand at
-a release and checked by nothing; `PRICED` below is the list of invocations
+What this module PRICES is a different question from what the cost table in
+`docs/using-golden-census.md` says. The table is a reader's order-of-magnitude
+guide, taken by hand at a release and checked by nothing; `PRICED` below is the list of invocations
 the determinism arms run, and it is owned HERE, in code, because the property
 they prove is golden-census's and not a document's: a command's output must
 cost the same under a temp root of 15 characters and one of 49, and must carry
@@ -19,10 +19,10 @@ subject of that measurement made every figure in it a thing a change had to
 preserve, which is backwards.
 
 Two more document facts are held to one owner here: the exit-code sentence,
-whose owner is `cli`'s module docstring and which both documents must carry
+whose owner is `cli`'s module docstring and which both sets must carry
 verbatim; and the shipped READMEs — every `templates/*/README.md` and
-`examples/*/README.md` must be linked from the README, a directory without one
-named rather than failed.
+`examples/*/README.md` must be linked from the README or a document under
+`docs/`, a directory without one named rather than failed.
 
 One shape this CLI needs and a one-command tool would not: the inventory is
 per SUBCOMMAND, so parity is a table of subcommands and their flags rather
@@ -276,9 +276,8 @@ def set_problems(surface: dict[str, tuple[str, ...]],
 
     The members are read as one text for the inventory and the tables: a flag
     may be named in any of them, and its row may stand in any of them. `entry`
-    is the path of the file read first and whole: it alone keeps every
-    subcommand and flag, so the invocations block it carries cannot lose one
-    to a reference, and every reference it names must be a member.
+    is the path of the file read first: every reference it names must be a
+    member of the set.
     """
     text = MEMBER_JOIN.join(body for _path, body in members)
     problems = (parity_problems(surface, text, name)
@@ -286,8 +285,6 @@ def set_problems(surface: dict[str, tuple[str, ...]],
     for path, body in members:
         if path != entry:
             continue
-        if len(members) > 1:
-            problems += inventory_problems(surface, body, path)
         problems += reference_problems(body, path,
                                        [member for member, _ in members])
     return problems
@@ -521,7 +518,7 @@ def exit_sentence() -> str:
     """The exit-code sentence, from its one owner: the line of `cli`'s module
     docstring beginning `Exit codes:`, stripped; `""` when no line does.
 
-    Three documents carry the sentence — `cli.py`, the manual, the skill —
+    Three documents carry the sentence — `cli.py`, `docs/reference.md`, the skill —
     and three statements of one fact drift apart one word at a time, so one of
     them owns it. `cli.py`'s is the owner because it sits beside `cli.main`,
     which decides the exit codes; `--help` prints the parser's description,
@@ -581,11 +578,11 @@ def set_sentence_problems(members: Members, name: str,
                         f"with {sentence!r}"]
 
 
-#: The heading both documents give the adopter's procedure. The section is
-#: found BY it: each document carries other numbered lists — the skill's
-#: report-hygiene list among them — and a walk over every `N.` in a document
-#: would compare a procedure against a checklist.
-PROCEDURE_HEADING = "Plugging a project in, in order"
+#: The heading of the first-run procedure, which ONE document carries:
+#: `references/first-run.md`. The section is found BY it: the skill carries
+#: other numbered lists — the report-hygiene list among them — and a walk over
+#: every `N.` in a document would read a checklist as the procedure.
+PROCEDURE_HEADING = "The first run, in order"
 
 #: A numbered item of a markdown list, and the bold phrase that opens it.
 STEP_LINE = re.compile(r"^(\d+)\.\s+(.*)$")
@@ -596,12 +593,10 @@ def procedure_steps(text: str) -> list[tuple[str, str]]:
     """`(number, the leading bold phrase)` for every numbered item under
     `PROCEDURE_HEADING`, in the order they are written.
 
-    The phrase and not the item's whole text: the two documents say the same
-    steps to two audiences and their bodies differ by design, while the phrase
-    that NAMES a step is the thing an agent and a human have to be told
-    identically. An item opening with no bold phrase comes back with an empty
-    one, which `procedure_problems` names rather than skipping — a step whose
-    name is missing is exactly what this check is for.
+    The phrase and not the item's whole text: the phrase NAMES the step, and a
+    step with no name is what this check is for. An item opening with no bold
+    phrase comes back with an empty one, which `procedure_problems` names
+    rather than skipping.
     """
     lines = text.splitlines()
     heading = next((number for number, line in enumerate(lines)
@@ -621,15 +616,13 @@ def procedure_steps(text: str) -> list[tuple[str, str]]:
 
 
 def procedure_problems(halves: list[tuple[str, str]]) -> list[str]:
-    """Everything the two procedures disagree about, as sentences.
-
-    The count, the numbering and the name of each step. A document that
-    carries no procedure at all is named rather than passed: two documents
-    with no steps between them agree perfectly and say nothing.
-    """
+    """Everything wrong with each procedure in `halves`, as sentences: a
+    document that carries no numbered step under `PROCEDURE_HEADING` is
+    named rather than passed, and so is a step that opens with no bold
+    phrase naming it."""
     problems: list[str] = []
-    read = [(label, procedure_steps(text)) for label, text in halves]
-    for label, steps in read:
+    for label, text in halves:
+        steps = procedure_steps(text)
         if not steps:
             problems.append(f"{label} carries no numbered step under "
                             f"{PROCEDURE_HEADING!r}")
@@ -637,21 +630,6 @@ def procedure_problems(halves: list[tuple[str, str]]) -> list[str]:
             if not phrase:
                 problems.append(f"{label} step {number} opens with no bold "
                                 "phrase naming it")
-    if len(read) < 2 or any(not steps for _label, steps in read):
-        return problems
-    (first_label, first), (second_label, second) = read[0], read[1]
-    if len(first) != len(second):
-        problems.append(
-            f"{first_label} states {len(first)} steps and {second_label} "
-            f"{len(second)} — the two documents are one procedure")
-    for left, right in zip(first, second, strict=False):
-        if left[0] != right[0]:
-            problems.append(f"{first_label} numbers a step {left[0]} where "
-                            f"{second_label} numbers it {right[0]}")
-        elif left[1] != right[1]:
-            problems.append(
-                f"step {left[0]} is {left[1]!r} in {first_label} and "
-                f"{right[1]!r} in {second_label}")
     return problems
 
 
@@ -761,11 +739,15 @@ def shipped_readmes(root: str) -> tuple[list[str], list[str]]:
     return present, missing
 
 
-def link_problems(text: str, label: str, readmes: list[str]) -> list[str]:
+def link_problems(text: str, label: str, readmes: list[str],
+                  base: str = "") -> list[str]:
     """Empty when every path in `readmes` is a markdown link TARGET in `text`
     — `](templates/x/README.md)`, a link a reader can follow, never a
-    mention in prose."""
-    targets = set(LINK_TARGET.findall(text))
+    mention in prose. `base` is the directory `text` sits in, from the root:
+    a document under `docs/` links `../templates/x/README.md`, and the
+    target is read from where the document is, as a reader's click would."""
+    targets = {os.path.normpath(os.path.join(base, target))
+               for target in LINK_TARGET.findall(text)}
     return [f"{label} links no {path}" for path in readmes
             if path not in targets]
 
@@ -912,8 +894,8 @@ def usage_subcommands(usage: str | None = None) -> tuple[str, ...]:
 
 def set_control(check: Any) -> None:
     """(ff) the document-set checks go red on a fabricated set and pass the
-    same set whole: the pair check in both directions, the first file read
-    alone, the references it names, and the procedure's one home."""
+    same set whole: the pair check in both directions, the references the
+    first file names, and the procedure's one home."""
     surface = command_surface()
     entry, reference = "fixture/one.md", "fixture/references/two.md"
     other = "# two\n"
@@ -934,12 +916,6 @@ def set_control(check: Any) -> None:
             "| `--version` | whole program |",
             "| `--version` | `--selfcheck` |", 1)), (reference, other)],
         "fixture-set", entry)
-    alone = set_problems(
-        surface, [(entry, synthetic_entry(surface, omit=("--allow-diff",),
-                                          unnamed=("--allow-diff",),
-                                          tail=cite)),
-                  (reference, "\n".join(synthetic_flag_table(surface)))],
-        "fixture-set", entry)
     unmade = set_problems(
         surface, [(entry, synthetic_entry(
             surface, tail=cite + " and references/gone.md")),
@@ -956,10 +932,9 @@ def set_control(check: Any) -> None:
           "`--census` under `probe`; a row for a pair the parser does not "
           "have (`--twice` under `compare`) FAILS naming it; a bare flag "
           "(`--version`) whose row names `--selfcheck` alone, which stands "
-          "for the bare command line only for `--manifest`, FAILS; a set "
-          "whose first file lacks a flag its "
-          "second carries FAILS naming that file and flag; a first file "
-          "naming a reference the set does not carry FAILS naming it; and "
+          "for the bare command line only for `--manifest`, FAILS; a first "
+          "file naming a reference the set does not carry FAILS naming it; "
+          "and "
           "the procedure heading in a second file FAILS naming both files",
           well == []
           and pair == ["fixture-set has no flag-table row for --census under "
@@ -973,7 +948,6 @@ def set_control(check: Any) -> None:
               "fixture-set has a flag-table row for --version whose second "
               "cell names no subcommand and not the whole program: "
               "`--selfcheck`"]
-          and alone == [f"{entry} is missing: --allow-diff"]
           and unmade == [f"{entry} names references/gone.md, which the agent "
                          "set does not carry"]
           and homes == ([(entry, heading)], [])
@@ -981,8 +955,8 @@ def set_control(check: Any) -> None:
                            f"{PROCEDURE_HEADING!r}: the procedure has one "
                            "home in fixture-set"],
           f"{ACTUAL}whole {well}; row removed {pair}; false row {false_row}; "
-          f"`--selfcheck` alone {selfcheck_only}; first file short "
-          f"{alone}; unmade reference {unmade}; the heading in one file "
+          f"`--selfcheck` alone {selfcheck_only}; unmade reference "
+          f"{unmade}; the heading in one file "
           f"{homes[1]}; in two {twice[1]}")
 
 
@@ -1049,37 +1023,23 @@ def docs_controls(check: Any) -> None:
     set_control(check)
 
     whole = synthetic_procedure(_FIXTURE_STEPS)
-    agree = procedure_problems([("fixture-readme", whole),
-                                ("fixture-skill", whole)])
-    cut = synthetic_procedure([step for step in _FIXTURE_STEPS
-                               if step[0] != "2"])
-    short = procedure_problems([("fixture-readme", whole),
-                                ("fixture-skill", cut)])
-    reworded = procedure_problems(
-        [("fixture-readme", whole),
-         ("fixture-skill", synthetic_procedure(
-             [(number, "Pick the function." if number == "1" else phrase)
-              for number, phrase in _FIXTURE_STEPS]))])
+    agree = procedure_problems([("fixture-skill", whole)])
+    headless = procedure_problems([("fixture-skill", "# two\n\n1. **A step.**\n")])
     nameless = procedure_problems(
-        [("fixture-readme", whole),
-         ("fixture-skill", synthetic_procedure(
-             [(number, "" if number == "3" else phrase)
-              for number, phrase in _FIXTURE_STEPS]))])
-    check("cccc  the adopter's procedure is ONE procedure told twice: the two "
-          "documents state the same number of steps, numbered the same, and "
-          "name each step with the same leading bold phrase — a step a human "
-          "is told to take and an agent is not is a step somebody skips. Two "
-          "fabricated documents carrying the same four steps pass; the same "
-          "pair with ONE step removed FAILS naming the count, one with a step "
-          "RENAMED FAILS naming that step and both phrases, and one whose "
-          "step opens with no bold phrase at all FAILS naming it",
+        [("fixture-skill", synthetic_procedure(
+            [(number, "" if number == "3" else phrase)
+             for number, phrase in _FIXTURE_STEPS]))])
+    check("cccc  the first-run procedure is numbered steps under its heading, "
+          "each named by the bold phrase it opens with — a step with no name "
+          "is a step somebody skips. A fabricated document carrying four such "
+          "steps passes; one with numbered steps under another heading FAILS "
+          "naming the heading it lacks, and one whose step opens with no bold "
+          "phrase at all FAILS naming it",
           agree == []
-          and any("states 4 steps" in one and "3" in one for one in short)
-          and any("'Choose the function.'" in one
-                  and "'Pick the function.'" in one for one in reworded)
+          and any("carries no numbered step" in one for one in headless)
           and any("opens with no bold phrase" in one for one in nameless),
-          f"{ACTUAL}the same twice {agree}; one step removed {short}; one "
-          f"renamed {reworded}; one unnamed {nameless}")
+          f"{ACTUAL}whole {agree}; no heading {headless}; one unnamed "
+          f"{nameless}")
 
     # The two one-owner facts, each checker shown red on a planted document
     # before its live row is believed.
@@ -1114,20 +1074,27 @@ def docs_controls(check: Any) -> None:
     unlinked = link_problems(linked.replace("](templates/b/README.md)",
                                             "](templates/b/)"),
                              "fixture-readme", present)
+    from_docs = "".join(f"- [`{path}`](../{path})\n" for path in present)
+    based = link_problems(from_docs, "fixture-docs", present, base="docs")
+    unbased = link_problems(from_docs, "fixture-docs", present)
     check("nnn  every `templates/*/README.md` and `examples/*/README.md` must "
-          "be a link target in the README, and a directory with no README is "
-          "NAMED rather than failed: a scratch box with templates/{_neutral,"
-          "a,b}/ and examples/c/ lists three READMEs and names `_neutral` as "
-          "README-less; a README linking all three passes; the same README "
-          "with `templates/b/README.md`'s link removed FAILS naming exactly "
-          "that path",
+          "be a link target in the README or in a document under docs/, and "
+          "a directory with no README is NAMED rather than failed: a scratch "
+          "box with templates/{_neutral,a,b}/ and examples/c/ lists three "
+          "READMEs and names `_neutral` as README-less; a README linking all "
+          "three passes; the same README with `templates/b/README.md`'s link "
+          "removed FAILS naming exactly that path; a docs/ document linking "
+          "all three as `../templates/…` passes when read from docs/ and "
+          "FAILS naming all three when read from the root",
           present == ["templates/a/README.md", "templates/b/README.md",
                       "examples/c/README.md"]
           and missing == ["templates/_neutral"]
           and full == [] and unlinked == ["fixture-readme links no "
-                                          "templates/b/README.md"],
+                                          "templates/b/README.md"]
+          and based == [] and len(unbased) == 3,
           f"{ACTUAL}present {present}, without a README {missing}; all "
-          f"linked {full}; b's link removed {unlinked}")
+          f"linked {full}; b's link removed {unlinked}; from docs/ {based}; "
+          f"from the root {unbased}")
 
 
 # ------------------------------------------------------------- the live check

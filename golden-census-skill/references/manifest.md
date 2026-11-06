@@ -2,11 +2,11 @@
 
 Open this file when you write or change a manifest row, or when you read a golden directory. The manifest is the coder's file. Whoever adds or changes a surface writes its row and its golden in the same commit.
 
-The whole rule for every key is in the format document, `docs/manifest-format.md` under the `docs` directory `golden-census --help` names. This file carries the rows to copy.
+The whole rule for every key is in the format document, `docs/manifest-format.md`. `golden-census --help` names the `docs` directory. This file carries the rows to copy.
 
 ## The command line of one run
 
-A run's argv is `command`, then the input's `args`, then the surface's `args`, in that order. A surface that only prints omits `writes`; its stdout, stderr and exit code are recorded.
+A run's argv is `command`, then the input's `args`, then the surface's `args`, in that order. Put in an input's `args` only what every surface of that input accepts. A surface that refuses one of them goes under a second input with fewer `args`, and that surface's `inputs` names the second input. A surface that only prints omits `writes`; its stdout, stderr and exit code are recorded.
 
 ## One rule for all three files
 
@@ -102,13 +102,13 @@ Rules that go with those rows:
 
 1. A `writes` recorded under one of the reserved names is refused because `compare` would then read a row that ran as one that ran on neither side.
 2. A `\r` is a byte like any other. A change of line ending alone is a `[DIFF]`. A written file's final newline, or its absence, is recorded too.
-3. A `failing` pattern records the lines of each group that match it, under that group's verdict line. A standing failure hides a new one under the same tally, so aim the pattern at the row's evidence line, not its name alone. Aim it at lines that hold no timing or digest your census does not fold. The capture log reports `M failing line(s)`. A pattern that reaches nothing shows as zero.
+3. A `failing` pattern records the lines of each group that match it, under that group's verdict line. A standing failure hides a new one under the same tally, so aim the pattern at the row's evidence line, not its name alone. Aim it at lines that hold no timing or digest your census does not fold. The capture log reports `M failing line(s)`. A pattern that reaches nothing shows as zero. An evidence line that prints a temp or home path makes the contraband scan refuse the capture. Fold the path, or aim the pattern at lines that carry none.
 4. `path` in a `[[movements]]` row names ONE surface path exactly, or carries a glob character. A bare directory name permits nothing: `path = "tool"` matches the path `tool` and never `tool/version.out`. To attribute a group, write the glob.
 5. `attribution` says why the row moved. A blank one is refused when the manifest is read. Leave the key out to record `(no attribution)`.
 6. Two `[[movements]]` rows with the same `path` string are refused when the manifest is read. A comparison in which two rows name one moved row is refused too, naming both. Give one row every reason.
 7. A `[[movements]]` row that matches no moved row is reported before the verdict as `unused: …`. The verdict does not change.
 
-A `matrix` surface runs `command`, the input's `args` and each row's `args` once per row of the included file and records the whole set as one compacted record, built for refusal matrices where every row prints the same usage block. `record_argv` is the text `surfaces.json` records as the row's argv, since no single command line exists.
+A `matrix` surface runs `command`, the input's `args` and each row's `args` once per row of the included file and records the whole set as one compacted record, built for refusal matrices where every row prints the same usage block. `record_argv` is the text `surfaces.json` records as the row's argv, since no single command line exists. Each row's `args` take the same placeholders as a surface's `args`. The rows run at the same time, each starting in `root`, so two rows must not write one file. The record opens with `pairs: N`, `usage-prefix-lines:` and `stdout-prefix-lines:`. Each of the last two counts the lines every row printed alike, which are recorded once. Each row follows, sorted by label, as `<label> exit=<code>` and then the rest of its stderr and stdout.
 
 ## A surface that needs a fixture, an environment or a pinned input
 
@@ -118,7 +118,8 @@ Every block below was loaded by a run of `census --manifest`. Paste them as sepa
 # Runs once per capture, in the work directory, before any row that `needs` it.
 # Two [[setup]] tables with one `name` are refused. Every element is passed as
 # written: a relative path names one in the work directory, and a script beside
-# the manifest is <HERE>/… — never a bare name.
+# the manifest is <HERE>/…, never its bare name; a program on PATH is its bare
+# name.
 [[setup]]
 name    = "fixture"
 command = ["<PYTHON>", "<HERE>/make_fixture.py", "<WORK>/fixture"]
@@ -145,15 +146,16 @@ counter = ["<PYTHON>", "<HERE>/counts.py", "<WRITES>"]
 env     = { FIXTURE_STORE = "<WORK>/fixture/store", GOLDEN_CENSUS_OUT = "<WRITES>" }
 needs   = ["fixture"]
 
-# A surface narrowed to some inputs, whatever a surface set says. A surface an
-# input NAMES that also narrows itself away from that input is refused.
+# A surface narrowed to some inputs, whatever a surface set says. A surface whose
+# `inputs` leaves out an input that names it is refused.
 [surfaces.pinned-only]
 args   = []
 inputs = ["pinned"]
 
 # An input pinned to a commit. golden-census clones it, and <CLONE> is the
 # clone's directory. `git` and `sha` come together, and an empty string is
-# neither. `expect_counts` never gates: it prints AGREES or DIFFERS beside the
+# neither. `git` may also be the path of a local checkout, which clones its
+# committed HEAD, not its working tree. `expect_counts` never gates: it prints AGREES or DIFFERS beside the
 # counter's numbers. It may not be an empty table, and an input none of whose
 # surfaces has a `counter` may not set it.
 [inputs.pinned]
@@ -162,6 +164,21 @@ sha           = "0000000000000000000000000000000000000000"
 args          = ["<CLONE>/src"]
 surfaces      = ["export-env", "pinned-only"]
 expect_counts = { rows = 1 }
+
+# A directory outside `root` is reached through <WORK>, never as an absolute
+# path in `args`: the argv is recorded in surfaces.json, which no `regex` fold
+# reads. This step links it in, and the surfaces that use it `need` the step.
+[[setup]]
+name    = "other-tree"
+command = ["ln", "-s", "/path/to/other-tree", "<WORK>/other-tree"]
+
+[surfaces.other-tree-list]
+args  = ["--list"]
+needs = ["other-tree"]
+
+[inputs.other-tree]
+args     = ["<WORK>/other-tree/src"]
+surfaces = ["other-tree-list"]
 ```
 
 The clone is the whole repository with its history, made once into the cache directory and kept there; a large repository lands on this disk at full size. The rest of a pinned input's rules are in `references/machine.md`: where the clone lives, what a `sha` may be, and the refusals.
@@ -184,7 +201,7 @@ A token that looks like a placeholder and is not defined in that place is refuse
 
 - `<HERE>` is how a project spells a file beside its manifest. An element that opens with `<HERE>` must name a file that is there, or the manifest is refused at load.
 - `mutants` carries `<HERE>` onto the copy of the subject when the manifest sits inside the checkout. A manifest outside the checkout keeps its own directory. A file the copy does not carry is refused, naming both paths.
-- `<REPO>`, `<TMPROOT>`, `<CWD>` and the other tokens `SKILL.md` lists under "Reading the verdict" are not placeholders in this sense. They are tokens golden-census prints in place of a path it folded; `<CLONE>` and `<PYTHON>` are both. The census chooses them, under its own `placeholder` key, whose sense is the opposite: a token written INTO a golden, not one substituted before a run. Never type one into a manifest.
+- `<REPO>`, `<TMPROOT>`, `<CWD>` and the other tokens `SKILL.md` lists under "Reading the verdict" are not placeholders in this sense. They are tokens golden-census prints in place of a path it folded; `<CLONE>` and `<PYTHON>` are both placeholders and path tokens. The census chooses them, under its own `placeholder` key, whose sense is the opposite: a token written INTO a golden, not one substituted before a run. Never write one into a manifest.
 
 ## The golden directory
 
@@ -202,7 +219,7 @@ A token that looks like a placeholder and is not defined in that place is refuse
 - A given golden carries only what its manifest produced. There is no `.skip` without a `skip` surface or an input whose pinned tree could not be cloned. There is no `_counts` without a `counter`. There is no `shares_invocation_with` unless two surfaces of one input recorded the same argv.
 - Read an absence as the manifest's shape, not as a golden that is missing something.
 - A declared skip holds the manifest author's own sentence, the same on every machine. A failed clone records one fixed sentence and leaves its reason in the log, because the reason came from git, the network or the machine.
-- A golden folder holds only what golden-census wrote. Anything else, even a `.DS_Store`, is refused if it is not text, and shows up as an `only-in-golden` or `only-in-new` row if it is.
+- A golden folder holds only what golden-census wrote. Anything else, even a `.DS_Store`, is refused if it is not text, and shows up as an `only-in-golden` or `only-in-new` row if it is. Ask what to do with the file.
 - On an `only-in-golden` row, that surface's `.exit` and `.err` in the NEW capture say why the run stopped producing it.
 - `surfaces.json` is the marker. A directory that holds at least one `<input>/surfaces.json` is a capture directory.
 - Normalization happens at capture time, never at compare time. A fold change means a re-capture, and it shows as a diff against the old golden.

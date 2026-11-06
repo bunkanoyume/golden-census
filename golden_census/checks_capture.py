@@ -3859,6 +3859,178 @@ def _skip_shape_control(check: CheckRow) -> None:
                "will not find.")
 
 
+#: Arm `vvvvvvvvv`'s plant: five rows, of which one ran and printed, one ran
+#: and printed nothing, one is declared unrunnable, and the two of the pinned
+#: input were never run because its clone fails.
+_UNRECORDED_MANIFEST = _subject("quiet", '["<PYTHON>", "subject.py"]') + '''
+[inputs.only]
+args     = []
+surfaces = ["loud", "silent", "unrunnable"]
+
+[inputs.pinned]
+git      = "no-such-repository-anywhere"
+sha      = "0000000000000000000000000000000000000000"
+args     = []
+surfaces = ["loud", "silent"]
+
+[surfaces.loud]
+args = ["--say"]
+
+[surfaces.silent]
+args = []
+
+[surfaces.unrunnable]
+skip = "needs a real index store"
+'''
+
+#: The control: the same subject with one row that prints.
+_RECORDED_MANIFEST = _subject("quiet", '["<PYTHON>", "subject.py"]') + '''
+[inputs.only]
+args     = []
+surfaces = ["loud"]
+
+[surfaces.loud]
+args = ["--say"]
+'''
+
+#: What the plant must print beside its verdict, in this order.
+_UNRECORDED_BLOCK = [
+    "  4 of 5 rows recorded no output from the subject:",
+    "    only/silent: ran, printed nothing and wrote no file",
+    "    only/unrunnable: not run — needs a real index store",
+    "    pinned (2 rows): not run — the pinned tree is unavailable",
+]
+
+
+def _unrecorded_control(check: CheckRow) -> None:
+    """(vvvvvvvvv) a capture or a comparison whose rows did not run, or ran
+    and printed nothing, says so beside its verdict.
+
+    `--twice: N files, byte-identical` and `IDENTICAL` were printed over a
+    capture whose every row of one input was skipped, because the clone
+    failed: the files counted were `.skip` files and `surfaces.json`, and an
+    agent quoting the verdict reported a golden that recorded nothing of
+    that input (skill test 2, 2026-11-05). The rule that such an input is a
+    finding stood in the skill, far from the line the agent quoted. A fact
+    that qualifies a verdict is printed beside it: one heading counting the
+    rows that hold no output of the subject, then one line per reason,
+    naming an input once when every row of it shares the reason.
+
+    The plant mixes every kind: a row that prints, a row that prints
+    nothing, a declared skip, and an input whose clone fails. The block must
+    follow `--twice:` and come before `capture complete`, and follow
+    `IDENTICAL` in a comparison of the same plant against its own capture.
+    The control is one row that prints: no heading anywhere in its log, so
+    the needle is shown to be absent where nothing qualifies the verdict.
+    """
+    label = ("vvvvvvvvv  a capture with rows that did not run, or ran and "
+             "printed nothing, prints `K of N rows recorded no output from "
+             "the subject:` beside its verdict, after `--twice:` and before "
+             "`capture complete`, one line per reason with an input named "
+             "once when all its rows share it; `compare` prints the same "
+             "block after `IDENTICAL`; a capture whose every row printed "
+             "prints no such block")
+    heading = "rows recorded no output from the subject:"
+    with _box("golden-census-unrecorded-") as box, _cache_in(box), \
+            _clone_that_fails(box):
+        _scratch(box, manifest_text=_UNRECORDED_MANIFEST,
+                 census_text=_SKIP_CENSUS,
+                 extra={"subject.py": _QUIET_SUBJECT,
+                        "counter.py": _QUIET_COUNTER})
+        manifest = load_manifest(os.path.join(box, "manifest.toml"))
+        log = io.StringIO()
+        code = capture(manifest, os.path.join(box, "out"), log, twice=True)
+        lines = log.getvalue().splitlines()
+        compared = io.StringIO()
+        compare_code = compare(manifest, os.path.join(box, "out"), None,
+                               None, compared)
+        compare_lines = compared.getvalue().splitlines()
+    with _box("golden-census-recorded-") as box:
+        clean_code, clean_text = _quiet_capture(box, _RECORDED_MANIFEST)
+
+    def follows(text: list[str], before: str) -> bool:
+        """The block sits right after the last line that opens `before`."""
+        at = max((i for i, line in enumerate(text)
+                  if line.strip().startswith(before)), default=-1)
+        return at >= 0 and text[at + 1:at + 1 + len(_UNRECORDED_BLOCK)] \
+            == _UNRECORDED_BLOCK
+
+    after_twice = follows(lines, "--twice:")
+    complete_next = (after_twice and lines.index(_UNRECORDED_BLOCK[-1]) + 1
+                     < len(lines)
+                     and lines[lines.index(_UNRECORDED_BLOCK[-1]) + 1]
+                     == "  capture complete")
+    after_identical = follows(compare_lines, "IDENTICAL")
+    control_quiet = clean_code == 0 and heading not in clean_text
+    found = [line for line in lines if heading in line or line.startswith(
+        ("    only/", "    pinned "))]
+    check(label,
+          code == 0 and compare_code == 0 and after_twice and complete_next
+          and after_identical and control_quiet,
+          f"{ACTUAL}capture exit {code}, the block after --twice: "
+          f"{after_twice}, then capture complete: {complete_next}; compare "
+          f"exit {compare_code}, the block after IDENTICAL: "
+          f"{after_identical}; the control, one row that prints -> exit "
+          f"{clean_code}, no heading: {control_quiet}; the plant's lines "
+          f"{[_one_line(line, 70) for line in found]}",
+          next="Print the rows that hold no output of the subject beside the "
+               "verdict, from the one producer `capture` and `compare` "
+               "share: a verdict quoted without it reports rows that never "
+               "ran as recorded.")
+
+
+def _one_hit_per_span_control(check: CheckRow) -> None:
+    """(wwwwwwwww) one occurrence of a path is one contraband hit, however
+    many patterns match it.
+
+    A home path on the running machine matches two patterns at once: "an
+    absolute home path", over every platform's home roots, and "the running
+    user's home directory". The scan kept a span only when no LONGER span on
+    its line held it, never asking whether an EQUAL span was already kept, so
+    each such line was listed twice and the count doubled (skill test 2,
+    2026-11-05: every `surfaces.json` line in the refusal appeared once per
+    label). The first pattern's label is kept, the one `contraband_patterns`
+    lists first.
+
+    Two plants. Two patterns of one spelling over one line: one hit, the
+    first label. The real patterns over a line holding the running user's
+    home: one hit. The control is the rule the dedup must not break: a short
+    spelling inside a longer one on the same line is still one hit, the
+    longer, and two different paths on one line are still two hits.
+    """
+    label = ("wwwwwwwww  one occurrence of a path is ONE contraband hit: two "
+             "patterns that match the same characters give one hit under the "
+             "first pattern's label, the running user's home on a line is one "
+             "hit under the real patterns, a spelling inside a longer one is "
+             "still the longer alone, and two different paths on a line are "
+             "still two")
+    same = [("first", re.compile(re.escape("/x/y"))),
+            ("second", re.compile(re.escape("/x/y")))]
+    twin = scan_text("plant.out", "at /x/y\n", same, ())
+    home = os.path.expanduser("~")
+    real = contraband_patterns(Roots(root="/nowhere/root", work="/nowhere/work"))
+    on_home = (scan_text("plant.out", f"at {home}/a\n", real, ())
+               if home and home != "/" else None)
+    nested = [("short", re.compile(re.escape("/tmp/x"))),
+              ("long", re.compile(re.escape("/private/tmp/x")))]
+    inside = scan_text("plant.out", "at /private/tmp/x\n", nested, ())
+    apart = scan_text("plant.out", "/x/y and /p/q\n",
+                      [same[0], ("other", re.compile(re.escape("/p/q")))], ())
+    twin_ok = [hit[2] for hit in twin] == ["first"]
+    home_ok = on_home is None or len(on_home) == 1
+    inside_ok = [hit[2] for hit in inside] == ["long"]
+    apart_ok = [hit[2] for hit in apart] == ["first", "other"]
+    check(label, twin_ok and home_ok and inside_ok and apart_ok,
+          f"{ACTUAL}two patterns over one span -> {[hit[2] for hit in twin]}; "
+          f"the running user's home -> "
+          f"{'not planted, HOME is /' if on_home is None else [hit[2] for hit in on_home]}; "
+          f"a spelling inside a longer one -> {[hit[2] for hit in inside]}; "
+          f"two different paths on a line -> {[hit[2] for hit in apart]}",
+          next="Keep one hit per span in `capture.scan_text`: a span equal to "
+               "one already kept is the same occurrence, and listing it again "
+               "doubles both the refusal and its count.")
+
+
 def _environmental_skip_control(check: CheckRow) -> None:
     """(ooooo) an environmentally skipped surface records a FIXED sentence,
     and the reason goes to the log.
@@ -7379,8 +7551,14 @@ def _name_ends_control(check: CheckRow) -> None:
     `path` row for the root are REFUSED with a `next:` naming the `path` row
     with `source = "root"`; a hit on the work directory under a census with
     no `path` row for it is sent to the row with `source = "work"`, and
-    beside a home path the `regex` sentence follows it. The `actual:` line
-    carries each.
+    beside a home path the `regex` sentence follows it; a hit in the
+    recorded argv (`surfaces.json`), whether a home path or a folded root's
+    sibling, gets the argv sentence, which does not send the reader to a
+    `regex` fold; beside a home path in a row the argv sentence comes first
+    and the `regex` sentence follows; a work hit in `surfaces.json` still
+    gets the `path` row; with a missing `path` row, an argv hit and a row hit
+    the three sentences come in that order, and "Then capture again." ends
+    each combination once. The `actual:` line carries each.
     """
     label = "dddddd  a directory folds only where its name ends"
     with _box("golden-census-name-ends-") as box:
@@ -7399,6 +7577,17 @@ def _name_ends_control(check: CheckRow) -> None:
         home_hit = ("_subject/report.out", 2, "an absolute home path", "/Users/x")
         work_next = _contraband_next(workless, [work_hit])
         mixed_next = _contraband_next(workless, [work_hit, home_hit])
+        # The same census, with the hit in the recorded argv.
+        argv_index = os.path.join("_subject", SURFACES_FILE)
+        argv_hit = (argv_index, 4, "an absolute home path", "/Users/x")
+        sibling_hit = (argv_index, 5, SOURCE_HITS["root"], box + "-old")
+        work_argv_hit = (argv_index, 6, SOURCE_HITS["work"], box)
+        argv_next = _contraband_next(workless, [argv_hit])
+        sibling_argv_next = _contraband_next(workless, [sibling_hit])
+        both_next = _contraband_next(workless, [home_hit, argv_hit])
+        work_argv_next = _contraband_next(workless, [work_argv_hit])
+        lacking_argv_next = _contraband_next(workless,
+                                             [work_hit, argv_hit, home_hit])
         target = os.path.join(box, "target")
         os.makedirs(target)
         link = os.path.join(box, "link")
@@ -7431,7 +7620,28 @@ def _name_ends_control(check: CheckRow) -> None:
                 " Then capture again."))
             and "For any other line quoted above, stop the subject printing "
             "the path where you can; otherwise add the census `regex` fold"
-            in mixed_next)
+            in mixed_next
+            and argv_next.startswith("The path is in `surfaces.json`")
+            and "a `regex` fold never reads it" in argv_next
+            and "otherwise add the census `regex` fold" not in argv_next
+            and argv_next.count("Then capture again.") == 1
+            and argv_next.endswith("Then capture again.")
+            and sibling_argv_next == argv_next
+            and both_next.startswith(argv_next.removesuffix(
+                " Then capture again."))
+            and both_next.count("Then capture again.") == 1
+            and "For any other line quoted above, stop the subject printing "
+            "the path where you can; otherwise add the census `regex` fold"
+            in both_next
+            and work_argv_next.startswith('Add a census `path` row with '
+                                          '`source = "work"`')
+            and "surfaces.json" not in work_argv_next
+            and lacking_argv_next.startswith(work_next.removesuffix(
+                " Then capture again."))
+            and "The path is in `surfaces.json`" in lacking_argv_next
+            and lacking_argv_next.index("The path is in `surfaces.json`")
+            < lacking_argv_next.index("For any other line quoted above")
+            and lacking_argv_next.count("Then capture again.") == 1)
     check(label,
           old_code == 2 and named and "<REPO>-old" not in old_recorded
           and sent
@@ -7444,7 +7654,13 @@ def _name_ends_control(check: CheckRow) -> None:
           f"{_one_line(sibling_next, 90)}; the four ends with no root fold "
           f"-> exit {bare_code}, next: {_one_line(bare_next, 90)}; a work "
           f"directory hit with no work fold -> next: {_one_line(work_next, 90)}"
-          f", and beside a home path -> {_one_line(mixed_next, 200)}; the four "
+          f", and beside a home path -> {_one_line(mixed_next, 200)}; a home "
+          f"path in surfaces.json -> {_one_line(argv_next, 120)}, a folded "
+          f"root's sibling there -> same={sibling_argv_next == argv_next}, "
+          f"beside a home path in a row -> {_one_line(both_next, 300)}, a work "
+          f"hit there with no work fold -> {_one_line(work_argv_next, 90)}, "
+          f"with a missing row, an argv hit and a row hit -> "
+          f"{_one_line(lacking_argv_next, 400)}; the four "
           "ends -> exit "
           f"{ends_code}, recorded {ends_recorded!r}; probe's fold -> "
           f"{derived!r}; the symlinked root's "

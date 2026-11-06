@@ -122,9 +122,14 @@ def _call_sites(source: str, name: str, called: Container[str]) -> list[str]:
     """
     tree = ast.parse(source, filename=name)
     owners = _ast_owners(tree)
-    return sorted(f"{name}:{node.lineno} in {_owner_at(owners, node.lineno)}()"
-                  for node in ast.walk(tree)
-                  if isinstance(node, ast.Call) and _named(node.func) in called)
+    # By line NUMBER: sorted as text, `cli.py:1024` came before `cli.py:754`
+    # and a file past line 999 listed its sites out of order.
+    calls = sorted((node for node in ast.walk(tree)
+                    if isinstance(node, ast.Call)
+                    and _named(node.func) in called),
+                   key=lambda node: node.lineno)
+    return [f"{name}:{node.lineno} in {_owner_at(owners, node.lineno)}()"
+            for node in calls]
 
 
 def _census_rows(manifest: Manifest, roots: Roots
@@ -133,6 +138,14 @@ def _census_rows(manifest: Manifest, roots: Roots
     and the skips `census_controls` files for it."""
     return _rows_of(lambda check, skip: census_controls(
         manifest.census, manifest, roots, check, skip))
+
+
+def _site_key(site: str) -> tuple[str, int]:
+    """`(file, line)` of a site the walk found, `<file>:<line> in <fn>()`:
+    the key that puts `cli.py:754` before `cli.py:1024`."""
+    where = site.split(" ", 1)[0]
+    name, _, line = where.rpartition(":")
+    return name, int(line)
 
 
 def _walk_package(sites: Callable[[str, str], list[str]],
@@ -169,7 +182,9 @@ def _walk_package(sites: Callable[[str, str], list[str]],
         return {}, [], (f"the package's own source could not be walked{at} "
                         f"({type(exc).__name__}: {exc}). What was read is "
                         "not used, and nothing is claimed.")
-    return sources, sorted(found), ""
+    # By file and then line NUMBER, as `_call_sites` orders one file: sorted
+    # as text, `cli.py:1024` came before `cli.py:754`.
+    return sources, sorted(found, key=_site_key), ""
 
 
 def _walk_for_plant(sites: Callable[[str, str], list[str]], label: str,
@@ -382,8 +397,8 @@ def prepare_fixture(box: str) -> Fixture:
         return Fixture(
             None,
             "`git` is not on PATH. The bundled fixture's census carries a "
-            "git-checkout precondition and its mutants need `git clone "
-            "--local`, so nothing here can be measured; nothing was made and "
+            "git-checkout precondition and its mutants need `git clone`, "
+            "so nothing here can be measured; nothing was made and "
             "nothing is claimed.",
             "Install git, or run `--selfcheck`, which needs none.")
     layout = Layout.detect()

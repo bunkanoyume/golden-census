@@ -166,7 +166,7 @@ finding     = "every file a surface `writes` lands under <WORK>, and both the pa
 name        = "the tool versions this capture was taken under"   # the row's word
 disposition = "state"              # read and printed, never pinned and never folded
 # the state block prints only the FIRST LINE of each command, so pipe a multi-line answer into one (`… | tr '\n' ' '`)
-commands    = [["<<HOLE:VERSION_COMMANDS>>"]]   # the quoted hole becomes the tool's words, one quoted string each: "<PYTHON>", "--version"; one inner list per tool
+commands    = [["<<HOLE:VERSION_COMMANDS>>"]]   # the quoted hole becomes the words of the SUBJECT'S own version command, one quoted string each: "bin/mytool", "--version"; one inner list per further tool it depends on
 # variables = ["LANG", "LC_ALL"]   # optional: variables read AS THE SUBJECT SEES THEM — an unlisted one reads <unset>
 finding     = "the subject's output is toolchain-bound wherever it shells out to another program, so an upgrade that moves a surface is attributed as a toolchain change and not as a subject change"
 

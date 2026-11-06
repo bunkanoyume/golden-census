@@ -34,7 +34,7 @@ import contextlib
 import os
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import Any, NoReturn
 
 # `selfcheck`, `selftest`, `docs` and the arm modules import this module: the
 # controls run in this process, and they exercise `main`, `run_census`,
@@ -102,6 +102,16 @@ _READS_A_MANIFEST = (", ".join(f"`{name}`" for name in MANIFEST_COMMANDS[:-1])
 HELP_LINE = ("show this help message and exit; nothing else on the command "
              "line is run")
 
+#: What a command line the parser turns down is refused as, and the one
+#: sentence the reader acts on: `{prog}` is the parser that answered, and
+#: `{detail}` is argparse's own message. The frame is golden-census's and the
+#: detail is argparse's, so no case is reworded. Typed ONCE, here;
+#: `_Parser.error` builds the refusal from them.
+USAGE_REFUSAL = "{prog} could not read its command line: {detail}."
+USAGE_NEXT_BARE = "Run {prog} --help. It lists the subcommands."
+USAGE_NEXT_SUB = ("Run {prog} --help. It lists every flag and marks the "
+                  "required ones.")
+
 
 class _Kept(argparse.Action):
     """Put in front of a flag's own action by `_Parser.add_argument`: what
@@ -115,7 +125,8 @@ class _Kept(argparse.Action):
 
 
 class _Parser(argparse.ArgumentParser):
-    """An `ArgumentParser` that says which flags were given more than once.
+    """An `ArgumentParser` that says which flags were given more than once,
+    and that turns down a command line it cannot read as a `Refusal`.
 
     argparse's default action keeps the LAST value a flag was given and says
     nothing about the others: `compare --manifest A --manifest B` read `B`,
@@ -261,6 +272,16 @@ class _Parser(argparse.ArgumentParser):
             namespace, "given_empty_commands", [])
         return namespace, rest
 
+    def error(self, message: str) -> NoReturn:
+        """A command line argparse cannot read is a refusal in golden-census's
+        frame with argparse's own detail, never its usage block on standard
+        error. `main` answers it. The `next:` is the one for the parser that
+        answered: the bare one lists subcommands, a subcommand's lists flags."""
+        template = (USAGE_NEXT_BARE if self._subparsers is not None
+                    else USAGE_NEXT_SUB)
+        raise Refusal(USAGE_REFUSAL.format(prog=self.prog, detail=message),
+                      next=template.format(prog=self.prog))
+
 
 def _subcommand(sub: argparse._SubParsersAction[_Parser],
                 name: str, summary: str) -> _Parser:
@@ -278,7 +299,7 @@ def _subcommand(sub: argparse._SubParsersAction[_Parser],
 def directories_section() -> str:
     """The `directories:` block the bare `--help` ends with: where this
     install keeps what a reader goes looking for — the format documents and
-    the manual, the worked example, the README that links them, the skill an
+    the reference, the worked example, the README that links them, the skill an
     agent copies, and the templates `init` writes from — alphabetically,
     each as the path `core.Layout` reads, in the checkout's own shape,
     `(not present)` after one the layout does not carry. A person running
@@ -374,7 +395,7 @@ def build_parser() -> argparse.ArgumentParser:
                           "null mutant runs either way")
 
     pro = _subcommand(sub, "probe", "run a candidate command twice and report the "
-                                    "five contract clauses")
+                                    "five clauses of the subject requirements")
     pro.add_argument("--census", dest="census", default=None, metavar="FILE",
                      path=True,
                      help="the census whose environment the candidate runs "
@@ -592,7 +613,7 @@ def main(argv: list[str] | None = None, run_selfcheck: bool = True, *,
                 args = build_parser().parse_args(argv)
         except SystemExit:
             # argparse prints `--help` — the one thing it writes to standard
-            # output; its usage errors go to stderr — and swallows any
+            # output; a usage error is a `Refusal`, answered below — and swallows any
             # `OSError` of the write. `out` recorded it. A buffered stream
             # meets the error again at the flush; an unbuffered one does not
             # (`PYTHONUNBUFFERED`, `-u`), so `main` asks `out`, not the flush:
@@ -603,6 +624,10 @@ def main(argv: list[str] | None = None, run_selfcheck: bool = True, *,
             if out.refused is not None:
                 raise out.refused from None
             raise
+        except Refusal as refusal:
+            # A command line argparse cannot read: `_Parser.error` raised it.
+            out.write(refusal_text(refusal) + "\n")
+            return EXIT_REFUSED
         try:
             # A flag given more than once, FIRST: every refusal below reads a
             # value of `args`, and argparse kept only the last one a repeated
@@ -648,9 +673,9 @@ def main(argv: list[str] | None = None, run_selfcheck: bool = True, *,
                 raise Refusal(" ".join(said), next=" ".join(then))
             # The forms that launch NOTHING, together and first: they start no
             # process group and print no line naming one, because a kill command
-            # for an empty group is a line that can only mislead. `--help` and an
-            # argparse usage error never reach here at all — argparse exits inside
-            # `parse_args`.
+            # for an empty group is a line that can only mislead. `--help` and a
+            # usage error never reach here at all — argparse exits inside
+            # `parse_args` for the first, and `_Parser.error` raises for the other.
             # A flag golden-census would not act on is REFUSED, naming it, and
             # before `anchored` — `--version` beside anything else, a
             # whole-program flag beside a subcommand or beside the other one,

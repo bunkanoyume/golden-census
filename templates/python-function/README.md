@@ -30,8 +30,9 @@ on stderr and exit 1, not a traceback. For a module named `nopkg` the line is
 `ModuleNotFoundError: No module named 'nopkg'`.
 
 When Python runs a script, the script's own directory is the first entry on
-`sys.path`. A package beside `runner.py` imports by its name. For a package
-elsewhere, move the runner beside it, or spell `MODULE` as the path from there.
+`sys.path`. A package beside or below `runner.py` imports by its dotted name. A package
+above or beside that directory is not reachable by name: move the runner beside
+it.
 
 A result that is not JSON-serializable fails the same way, in one line. A
 dataclass, a set and a custom object are such results. For a set the line is
@@ -41,7 +42,7 @@ in `FUNCTION_CALL`: `dataclasses.asdict(...)`, `sorted(...)`, `str(...)`.
 ## 3. The manifest lines this runner implies
 
 `init` wrote the neutral manifest with its holes in place. This block shows the
-lines of the holes `COMMAND`, `INPUT_ARGS`, `SURFACE_ARGS` and `WRITES_EXT`,
+lines of the holes `PROGRAM_RUN_COMMAND`, `INPUT_ARGS`, `SURFACE_ARGS` and `WRITES_EXT`,
 filled for this runner.
 
 ```toml
@@ -122,7 +123,7 @@ another interpreter, and then the probe checks a Python the manifest never
 runs. The banner shows the difference. golden-census's own interpreter prints
 as `PROBE  <PYTHON> runner.py <WRITES>`, and any other spelling prints as
 spelled. The probe runs the runner twice and reports the five clauses of
-`docs/contract.md`.
+`docs/subject-requirements.md`.
 
 ## 4. Why each line of the runner exists
 
@@ -149,7 +150,7 @@ spelled. The probe runs the runner twice and reports the five clauses of
   newline, so the file ends the way a text file does.
 - **`newline="\n"`** — the written bytes are the same on every platform.
 - **`except Exception` at the entry point → one line, exit 1** — this is
-  clause 3 of the contract: a run that could not write the file exits
+  clause 3 of the subject requirements: a run that could not write the file exits
   non-zero. It is also clause 4: what the run prints is one stable line. A
   traceback carries paths and line numbers, and both move.
 - **Nothing printed on success** — clause 4 again. golden-census records
@@ -168,7 +169,8 @@ project on every run and holds it to hole parity.
 - **The runner's directory is `sys.path[0]`, the cwd is not.** Python puts a
   script's own directory first on the path. The manifest's `root` is the cwd of
   the run, and it is not on the path unless the two coincide. Put `runner.py`
-  beside the package it imports, or spell `MODULE` from there.
+  beside the package it imports, or spell `MODULE` as the dotted name of a
+  package below the runner's directory.
 - **A dict's order is not a fixture's order.** `sort_keys=True` sorts the keys
   of every object the function returns. It does not sort lists. A function
   that returns a list built from a set, or from a dict of unknown order, moves
